@@ -16,6 +16,7 @@ color_reset="\033[0m"
 say()  { printf "%b→%b %s\n" "$color_dim" "$color_reset" "$*"; }
 ok()   { printf "%b✓%b %s\n" "$color_green" "$color_reset" "$*"; }
 die()  { printf "%b✗%b %s\n" "$color_red" "$color_reset" "$*" >&2; exit 1; }
+ask()  { printf "%b?%b %s " "$color_green" "$color_reset" "$*"; }
 
 # --- preflight ---------------------------------------------------------------
 
@@ -33,7 +34,7 @@ if ! command -v gh >/dev/null 2>&1; then
   say "      Install later with: brew install gh && gh auth login"
 fi
 
-# --- clone / update ----------------------------------------------------------
+# --- clone / update kb-tool --------------------------------------------------
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 
@@ -81,30 +82,51 @@ if [ -n "$SHELL_RC" ]; then
   fi
 fi
 
-# --- done --------------------------------------------------------------------
+# Make kb available in this shell session without requiring a reload.
+export PATH="$LOCAL_BIN:$PATH"
+
+# --- vault setup -------------------------------------------------------------
 
 echo ""
 ok "kb installed."
 echo ""
-if $PATH_ADDED; then
-  printf "%b!%b PATH updated in %s — run: source %s\n" "$color_green" "$color_reset" "$SHELL_RC" "$SHELL_RC"
+
+# When piped through curl|bash stdin is the pipe — read from /dev/tty instead.
+TTY="${TTY:-/dev/tty}"
+if [ ! -r "$TTY" ]; then TTY="/dev/stdin"; fi
+
+ask "New vault or existing team vault? [new/existing]"
+read -r vault_mode <"$TTY"
+vault_mode="${vault_mode:-new}"
+
+echo ""
+
+if [ "$vault_mode" = "existing" ]; then
+  # --- clone existing team vault ---
+  ask "Team vault repo URL:"
+  read -r vault_url <"$TTY"
+
+  default_name="$(basename "$vault_url" .git)"
+  default_path="$HOME/Documents/$default_name"
+  ask "Clone to [$default_path]:"
+  read -r vault_path <"$TTY"
+  vault_path="${vault_path:-$default_path}"
+
   echo ""
-elif ! command -v kb >/dev/null 2>&1; then
-  printf "%b!%b Add kb to your PATH: $PATH_LINE\n" "$color_green" "$color_reset"
-  echo ""
+  say "Cloning vault into $vault_path..."
+  git clone "$vault_url" "$vault_path"
+
+  cd "$vault_path"
+  "$LOCAL_BIN/kb" init --upgrade
+else
+  # --- new vault ---
+  "$LOCAL_BIN/kb" init
 fi
-echo "Next steps:"
-echo "  1. Reload shell:  source ${SHELL_RC:-~/.zshrc}   (or open a new terminal)"
-echo "  2. Verify:        kb --version"
-echo "  3. If you don't have gh yet:  brew install gh && gh auth login"
+
+# --- shell reload reminder ---------------------------------------------------
+
 echo ""
-echo "  New vault:"
-echo "    kb init                          — scaffold a fresh vault (prompts for path, product, team)"
-echo "    Open the vault folder in Claude Code + Obsidian"
-echo "    Type /resume in Claude Code to begin"
-echo ""
-echo "  Existing team vault:"
-echo "    git clone <vault-repo-url>"
-echo "    Open it in Claude Code + Obsidian"
-echo "    Type /resume in Claude Code to begin"
-echo ""
+if $PATH_ADDED; then
+  printf "%b!%b Shell reloaded for this session. To persist, run: source %s\n" \
+    "$color_green" "$color_reset" "${SHELL_RC:-~/.zshrc}"
+fi

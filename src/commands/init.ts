@@ -493,7 +493,18 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
     }
   }
 
-  const existingConfig = getConfig();
+  // If no config exists this is a fresh clone — ask only for the author name.
+  let existingConfig = getConfig();
+  if (!existingConfig) {
+    const author = await session.ask(chalk.cyan('Your name?'), '');
+    const configDir = path.join(os.homedir(), '.kb');
+    if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+    const configPath = path.join(configDir, 'config.json');
+    existingConfig = { vault_path: vaultPath, author, team: [], editor: 'obsidian', auto_git_commit: true };
+    fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+    added.push(`~/.kb/config.json`);
+  }
+
   const vars: Record<string, string> = {
     PRODUCT_NAME: 'Product',
     VAULT_NAME: path.basename(vaultPath),
@@ -656,6 +667,15 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
     console.log(oneDriveLog);
     console.log();
   }
+
+  // Weekly auto-update cron
+  const updateLog = scheduleWeeklyUpdate();
+  if (updateLog) console.log(updateLog);
+
+  console.log(chalk.bold('\nNext steps:'));
+  console.log(`  1. Open ${path.basename(vaultPath)}/ in Claude Code (drag it into the app as a project)`);
+  console.log(`  2. Open it in Obsidian (Open folder as vault)`);
+  console.log(`  3. In Claude Code, type /resume to begin.\n`);
 }
 
 export async function initCommand(options: { upgrade?: boolean }) {
