@@ -232,14 +232,26 @@ async function setupOneDriveSync(
   }
 }
 
-const POST_MERGE_HOOK = `#!/bin/sh
+function buildPostMergeHook(): string {
+  // Resolve kb at hook-write time so the hook uses the absolute path.
+  // Falls back to ~/.local/bin/kb (our install location) if `which` fails.
+  let kbPath = `$HOME/.local/bin/kb`;
+  try {
+    const resolved = execSync('which kb 2>/dev/null', { stdio: 'pipe' }).toString().trim();
+    if (resolved) kbPath = resolved;
+  } catch {
+    // which not available or kb not on PATH yet — use default
+  }
+  return `#!/bin/sh
 # Installed by kb init — runs after git merge / git pull.
 # Generates an update log and refreshes the semantic search index.
-if command -v kb >/dev/null 2>&1; then
-  kb updates --generate --quiet 2>/dev/null || true
-  kb index --diff --quiet 2>/dev/null || true
+KB=${kbPath}
+if [ -x "$KB" ]; then
+  "$KB" updates --generate --quiet 2>/dev/null || true
+  "$KB" index --diff --quiet 2>/dev/null || true
 fi
 `;
+}
 
 // Returns: 'installed' | 'exists' | 'skipped' (not a git repo)
 function installPostMergeHook(vaultPath: string): 'installed' | 'exists' | 'skipped' {
@@ -247,7 +259,7 @@ function installPostMergeHook(vaultPath: string): 'installed' | 'exists' | 'skip
   if (!fs.existsSync(hooksDir)) return 'skipped';
   const hookPath = path.join(hooksDir, 'post-merge');
   if (fs.existsSync(hookPath)) return 'exists';
-  fs.writeFileSync(hookPath, POST_MERGE_HOOK, 'utf-8');
+  fs.writeFileSync(hookPath, buildPostMergeHook(), 'utf-8');
   fs.chmodSync(hookPath, 0o755);
   return 'installed';
 }
@@ -559,9 +571,18 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
     }
   }
 
-  // Post-merge hook
-  const hookState = installPostMergeHook(vaultPath);
-  if (hookState === 'installed') added.push('.git/hooks/post-merge');
+  // Post-merge hook — install if missing, or repair if it uses bare `kb` (no full path)
+  const hooksDir = path.join(vaultPath, '.git', 'hooks');
+  const hookPath = path.join(hooksDir, 'post-merge');
+  const existingHook = fs.existsSync(hookPath) ? fs.readFileSync(hookPath, 'utf-8') : '';
+  const needsRepair = existingHook.includes('command -v kb') || (existingHook.includes('kb ') && !existingHook.includes('KB='));
+  if (!fs.existsSync(hookPath) || needsRepair) {
+    if (fs.existsSync(hooksDir)) {
+      fs.writeFileSync(hookPath, buildPostMergeHook(), 'utf-8');
+      fs.chmodSync(hookPath, 0o755);
+      added.push(needsRepair ? '.git/hooks/post-merge (repaired — fixed kb path)' : '.git/hooks/post-merge');
+    }
+  }
 
   // Backfill `## Links` sections on existing canonical files. Phase 7
   // added auto-generation to `kb publish`, but files published before
