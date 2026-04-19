@@ -8,7 +8,7 @@ archive/
 .DS_Store
 
 # Phase 8 — personal / binary content
-_files/
+_files
 _private/*
 !_private/README.md
 .claude/agents.private/
