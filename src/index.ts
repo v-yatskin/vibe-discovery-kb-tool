@@ -6,13 +6,20 @@ import { publishCommand } from './commands/publish';
 import { searchCommand } from './commands/search';
 import { statusCommand } from './commands/status';
 import { branchCommand } from './commands/branch';
+import { initCommand } from './commands/init';
 
 const program = new Command();
 
 program
   .name('kb')
   .description('Product knowledge vault CLI')
-  .version('0.1.0-poc');
+  .version('0.2.0');
+
+program
+  .command('init')
+  .description('Create a new vault (or add missing structure with --upgrade)')
+  .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
+  .action((options) => initCommand(options));
 
 program
   .command('list [type]')

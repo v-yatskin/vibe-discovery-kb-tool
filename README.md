@@ -27,20 +27,19 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | `kb branch --open / --close / --status` | ✅ full two-phase git flow (push + `gh pr create` + `gh pr merge` + `git pull`) |
 | Sample vault | ✅ lives in separate repo: [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) |
 | `.claude/CLAUDE.md` + slash commands (in the vault repo) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis` |
+| `kb init` + `kb init --upgrade` | ✅ Phase 1 — scaffolds a fresh vault from `scaffold/` with placeholder substitution |
+| `scripts/install.sh` | ✅ clone + build + link |
 
 ### In progress / not started
 
 | Area | Target |
 |---|---|
-| `kb init` | Phase 1 — create a vault from scratch (folders, templates, `.claude/`, post-merge hook) |
-| `kb updates --generate` | Phase 2 — post-pull digest of what teammates merged |
+| `kb updates --generate` + post-merge hook | Phase 2 — post-pull digest of what teammates merged |
 | `kb index` + semantic search | Phase 3 — local embeddings via `@xenova/transformers` |
 | Slash commands `/roadmap` `/updates` `/preserve` `/engineer-critique` `/spec-writer` | Phase 4 |
-| `scripts/install.sh` | ✅ done — clone + build + link |
-| User-facing vault README | Phase 5 (done in vault repo) |
 | Compiled binary (`bun build --compile`) | Phase 6 (optional) |
 
-Estimated remaining effort: **~13h across 2–3 focused sessions.** See `execution-plan.md` in the [planning repo](https://github.com/v-yatskin/vibe-discovery).
+Estimated remaining effort: **~10h v1 + ~10h v2** — see `execution-plan.md` in the [planning repo](https://github.com/v-yatskin/vibe-discovery).
 
 ---
 
@@ -131,7 +130,7 @@ curl -fsSL https://raw.githubusercontent.com/v-yatskin/vibe-discovery-kb-tool/ma
 
 The installer clones into `~/.kb/app`, installs dependencies, builds, and links `kb` globally. Requires Node 20+ (bail with instructions if missing).
 
-After install, run `kb init` (once Phase 1 ships) to create a new vault. For now, clone an existing vault directly.
+After install, run `kb init` to scaffold a fresh vault from scratch — it prompts for vault path, product name, author, and team, then creates the full folder structure, templates, `.claude/` slash commands, `.gitignore`, and a `~/.kb/config.json`. For existing PoC vaults, `kb init --upgrade` adds any missing folders or slash commands without touching existing files.
 
 The end-user README lives in the vault repo — see `README.md` in the sample vault for the flow teammates will follow.
 
@@ -142,16 +141,19 @@ The end-user README lives in the vault repo — see `README.md` in the sample va
 ```
 kb-tool/
 ├── src/
-│   ├── commands/          # one file per `kb <command>`
-│   ├── entities/          # schema definitions + validators
-│   ├── git/               # git + gh wrappers
-│   ├── search/            # fuse + embeddings
+│   ├── commands/          # one file per `kb <command>` (init, draft, publish, ...)
+│   ├── config/            # ~/.kb/config.json read/write
+│   ├── schema/            # frontmatter validators per entity type
+│   ├── vault/             # folder + git helpers
 │   └── index.ts           # CLI entry
+├── scaffold/              # seed files copied by `kb init`
+│   ├── templates/         # 9 entity templates
+│   ├── .claude/           # CLAUDE.md + 5 slash commands (with {{placeholders}})
+│   ├── Home.md
+│   ├── README.md
+│   └── .gitignore
 ├── scripts/
-│   └── install.sh         # (Phase 5)
-├── .claude/
-│   ├── CLAUDE.md          # instructions for Claude Code in this repo
-│   └── commands/          # slash commands
+│   └── install.sh
 ├── package.json
 └── README.md
 ```
