@@ -129,6 +129,25 @@ function isGitRepo(p: string): boolean {
   return fs.existsSync(path.join(p, '.git'));
 }
 
+const POST_MERGE_HOOK = `#!/bin/sh
+# Installed by kb init — runs after git merge / git pull.
+# Generates an update log summarizing commits pulled from remote.
+if command -v kb >/dev/null 2>&1; then
+  kb updates --generate --quiet 2>/dev/null || true
+fi
+`;
+
+// Returns: 'installed' | 'exists' | 'skipped' (not a git repo)
+function installPostMergeHook(vaultPath: string): 'installed' | 'exists' | 'skipped' {
+  const hooksDir = path.join(vaultPath, '.git', 'hooks');
+  if (!fs.existsSync(hooksDir)) return 'skipped';
+  const hookPath = path.join(hooksDir, 'post-merge');
+  if (fs.existsSync(hookPath)) return 'exists';
+  fs.writeFileSync(hookPath, POST_MERGE_HOOK, 'utf-8');
+  fs.chmodSync(hookPath, 0o755);
+  return 'installed';
+}
+
 async function gatherAnswers(session: PromptSession): Promise<InitAnswers> {
   console.log(chalk.bold('\nkb init — create a new product discovery vault\n'));
   const vaultPath = await session.ask(chalk.cyan('Where should the vault live?'), DEFAULT_VAULT_PATH);
@@ -212,6 +231,9 @@ async function freshInit(scaffoldDir: string) {
       }
     }
   }
+
+  // Post-merge hook
+  installPostMergeHook(vaultPath);
 
   // Config
   const configDir = path.join(os.homedir(), '.kb');
@@ -299,6 +321,10 @@ async function upgradeInit(scaffoldDir: string) {
       }
     }
   }
+
+  // Post-merge hook
+  const hookState = installPostMergeHook(vaultPath);
+  if (hookState === 'installed') added.push('.git/hooks/post-merge');
 
   if (added.length === 0) {
     console.log(chalk.dim('  Everything up to date — nothing to add.\n'));

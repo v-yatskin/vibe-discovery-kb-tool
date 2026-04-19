@@ -21,11 +21,24 @@ export function getConfig(): KbConfig | null {
   }
 }
 
+// Walk up from CWD looking for a git repo. A teammate with multiple vaults
+// (or two people on one machine) expects `kb X` to operate on whichever vault
+// they're cd'd into — not the configured default from whoever ran `kb init` last.
+function findVaultFromCwd(): string | null {
+  let dir = process.cwd();
+  while (dir !== path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return null;
+}
+
 export function getVaultPath(): string {
+  const fromCwd = findVaultFromCwd();
+  if (fromCwd) return fromCwd;
   const config = getConfig();
   if (config?.vault_path && fs.existsSync(config.vault_path)) {
     return config.vault_path;
   }
-  // PoC default: current working directory
   return process.cwd();
 }

@@ -7,6 +7,7 @@ import { searchCommand } from './commands/search';
 import { statusCommand } from './commands/status';
 import { branchCommand } from './commands/branch';
 import { initCommand } from './commands/init';
+import { updatesCommand } from './commands/updates';
 
 const program = new Command();
 
@@ -20,6 +21,14 @@ program
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('updates')
+  .description('Log what changed after a git pull (--generate is the default action)')
+  .option('--generate', 'Write Updates-Log/YYYY-MM-DD-HHMM.md for ORIG_HEAD..HEAD (default)')
+  .option('--list', 'List existing update logs')
+  .option('--quiet', 'Suppress output (used by post-merge hook)')
+  .action((options) => updatesCommand(options));
 
 program
   .command('list [type]')
