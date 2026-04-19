@@ -1,51 +1,51 @@
-# kb-tool
+# kb-tool (vibe-discovery)
 
-> A CLI that turns an Obsidian vault into a git-backed, AI-queryable knowledge base for product discovery teams.
+> AI-assisted product discovery knowledge base for small teams (PM + Designer + BA). The team talks to Claude Code, browses in Obsidian, and never touches a terminal after install.
 
-`kb` is the engine behind a two-phase workflow:
+```
+Chat → Draft → Human Edit → Publish (commit) → Canonical Knowledge → AI Retrieval
+```
 
-1. **Capture** — AI-assisted drafts in `00_Drafts/`, purely local, no git
-2. **Publish** — drafts are validated, committed to canonical folders, pushed as a PR, and merged — all in one step
+---
 
-The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after install.
+## What this solves
+
+- Insights scatter across Notion, Slack, and local docs
+- Roadmaps drift out of sync with the research that justified them
+- Newcomers have no single place to learn *why* past decisions were made
+- AI outputs aren't reusable across the team
 
 ---
 
 ## Status
 
-**Proof of concept complete.** The core CLI and two-phase git flow work end-to-end against a sample vault.
+**v1 + v2 complete.** All 9 planned phases shipped.
 
-### Shipped
+### What's live
 
 | Area | Done |
 |---|---|
-| `kb draft` | ✅ creates from template, writes to `00_Drafts/` |
-| `kb publish` | ✅ validates schema, moves file, local commit |
-| `kb list [type]` | ✅ colored table, plural aliases, `--status` filter |
-| `kb status` | ✅ entity counts, git state, pending drafts |
-| `kb search` | ✅ hybrid — fuse.js keyword + semantic (all-MiniLM-L6-v2) via RRF fusion |
-| `kb index` + `kb index --diff` | ✅ Phase 3 — embeds canonical files into `.kb/vectors.json`, content-hash diff |
-| `kb branch --open / --close / --status` | ✅ full two-phase git flow (push + `gh pr create` + `gh pr merge` + `git pull`) |
-| Sample vault | ✅ lives in separate repo: [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) |
-| `.claude/CLAUDE.md` + slash commands (scaffolded into every new vault by `kb init`) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis`, `/updates`, `/roadmap`, `/preserve`, `/engineer-critique`, `/spec-writer` |
 | `kb init` + `kb init --upgrade` | ✅ Phase 1 — scaffolds a fresh vault from `scaffold/` with placeholder substitution |
-| `kb publish` wikilink auto-generation | ✅ Phase 7 — auto-appends `## Links` section with `[[wikilinks]]` from frontmatter, idempotent |
-| `kb base --list` + 7 seeded `.base` files | ✅ Phase 7 — Obsidian live filtered views (open-problems, active-initiatives, high-confidence-insights, my-drafts, recent-decisions, orphan-insights, stale-initiatives) |
-| `/graph [entity]` slash command | ✅ Phase 7 — text summary of the link graph around an entity |
+| `kb updates --generate` + post-merge hook | ✅ Phase 2 — auto-runs on `git pull`, writes `Updates-Log/*.md` |
+| `kb index` + semantic search | ✅ Phase 3 — all-MiniLM-L6-v2 embeddings, hybrid keyword+semantic via RRF |
+| Slash commands `/roadmap` `/preserve` `/engineer-critique` `/spec-writer` | ✅ Phase 4 — scaffolded by `kb init` / `--upgrade` |
+| `scripts/install.sh` | ✅ Phase 5 — clone + build + link |
+| `kb publish` wikilink auto-generation + 7 seeded `.base` files + `/graph` | ✅ Phase 7 — Obsidian bases as primary team UI, auto-generated `## Links` sections |
 | `11_Data/`, `_files/`, `_private/` + `kb snapshot` + `kb files --link` | ✅ Phase 8 — data snapshots, OneDrive-synced binaries, personal workspace |
-| `kb edit` + `kb link` + `kb retire` | ✅ Phase 9 — safe updates, link management, retirement with backlink warnings |
-| Subagents `kb-reviewer`, `link-finder`, `vault-curator` + `/edit /link /curate` slash commands | ✅ Phase 9 — curation & review workflows |
-| `scripts/install.sh` | ✅ clone + build + link |
+| `kb edit` + `kb link` + `kb retire` + 3 subagents + `/edit /link /curate` | ✅ Phase 9 — safe updates, link management, retirement with backlink warnings |
+| Core CLI (`draft`, `publish`, `list`, `status`, `search`, `branch`) | ✅ PoC |
+| Sample vault | ✅ [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) — realistic TaskFlow team data |
 
-### In progress / not started
+### Backlog
 
 | Area | Target |
 |---|---|
-| `kb updates --generate` + post-merge hook | ✅ Phase 2 — auto-runs on `git pull`, writes `Updates-Log/*.md` |
-| Slash commands `/roadmap` `/preserve` `/engineer-critique` `/spec-writer` | ✅ Phase 4 — scaffolded by `kb init` / `kb init --upgrade` |
-| Compiled binary (`bun build --compile`) | Phase 6 (optional) |
+| Compiled binary (`bun build --compile`) | Phase 6 (optional, no-Node install) |
+| `/inbox-process` slash command | Batch-publish all pending drafts in 00_Drafts/ |
+| `kb ui` local web dashboard | Standup/stakeholder views |
+| `kb sync` with Obsidian Sync headless mode | Alternative to git for non-engineers |
 
-Estimated remaining effort: **~10h v1 + ~10h v2** — see `execution-plan.md` in the [planning repo](https://github.com/v-yatskin/vibe-discovery).
+See [`docs/execution-plan.md`](docs/execution-plan.md) for the full phase history and remaining backlog.
 
 ---
 
@@ -67,9 +67,9 @@ kb draft             kb branch --open   → local branch
 ### Layers
 
 1. **Input** — Claude Code conversation → `kb draft`
-2. **Processing** — `kb publish` validates frontmatter against entity schemas, moves file to canonical folder
-3. **Storage** — markdown with typed frontmatter, one entity per file, append-only
-4. **Retrieval** — `kb search` (keyword now, semantic later) + Claude reads files directly
+2. **Processing** — `kb publish` validates frontmatter against entity schemas, moves file to canonical folder, auto-generates `## Links` section
+3. **Storage** — markdown with typed frontmatter, one entity per file, append-only; Obsidian bases for live filtered views
+4. **Retrieval** — `kb search` (hybrid fuse.js + semantic embeddings via RRF) + Claude reads files directly
 
 ### Entity schemas
 
@@ -81,31 +81,46 @@ kb draft             kb branch --open   → local branch
 | `decision` | `04_Decisions/` | title, reasoning, linked_evidence |
 | `initiative` | `05_Initiatives/` | title, status, priority, linked_problems |
 | `feature` | `06_Features/` | title, status, linked_initiative |
+| `data-snapshot` | `11_Data/<date-slug>/snapshot.md` | title, date, source |
 
-See `09_Templates/` in the sample vault for full schemas.
-
----
-
-## Architecture
-
-- **Language:** TypeScript, Node.js 20+
-- **Build:** compiled to CJS via `tsc`
-- **Dependencies:** `commander` (CLI), `fuse.js` (keyword search), `gray-matter` (frontmatter), `chalk` (colors), `@xenova/transformers` (embeddings — Phase 3)
-- **Git:** shells out to `git` and `gh` — no JS git library
-- **Config:** `~/.kb/config.json` (vault path, author name)
-- **Per-vault state:** `.kb/vectors.json` (Phase 3), `.kb/session.json` (active branch)
-
-Design goals: zero manual setup, no API key, no per-token cost (uses the user's Claude Code subscription).
-
-Full design lives in the planning repo: [vibe-discovery](https://github.com/v-yatskin/vibe-discovery) (see `architecture.md` and `project-plan.md`).
+See `scaffold/templates/` for full template definitions.
 
 ---
 
-## Install (for development)
+## Planning & design docs
+
+All design thinking lives in [`docs/`](docs/):
+
+| File | Purpose |
+|---|---|
+| [`docs/project-plan.md`](docs/project-plan.md) | Full PRD — objective, problems, architecture, data model, commands, workflow, build status |
+| [`docs/architecture.md`](docs/architecture.md) | Technical architecture — repo layout, entity schemas, command specs, git model, slash command specs |
+| [`docs/execution-plan.md`](docs/execution-plan.md) | Phased roadmap with time estimates — all 9 phases shipped |
+| [`docs/phase-2-plan.md`](docs/phase-2-plan.md) | v2 design — Obsidian bases & wikilinks, extended folders, update & curation flows, subagents |
+| [`docs/user-journey.md`](docs/user-journey.md) | End-to-end walkthrough of Anna (Designer) — install, capture, publish, query, session end |
+| [`docs/reddit.html`](docs/reddit.html) | Reference material: community knowledge-system patterns that informed the design |
+
+---
+
+## Install (end users)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/v-yatskin/vibe-discovery-kb-tool/main/scripts/install.sh | bash
+```
+
+The installer clones into `~/.kb/app`, installs dependencies, builds, and links `kb` globally. Requires Node 20+ (the script exits with install instructions if missing).
+
+After install, run `kb init` to scaffold a fresh vault from scratch — it prompts for vault path, product name, author, and team, then creates the full folder structure, templates, `.claude/` slash commands, `.gitignore`, and writes `~/.kb/config.json`. For existing PoC vaults, `kb init --upgrade` adds any missing folders, slash commands, subagents, Obsidian config, and backfills `## Links` sections on canonical files without touching your edits.
+
+The end-user walkthrough lives in the vault repo — see `README.md` in [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) for the flow teammates will follow.
+
+---
+
+## Install (development)
 
 ```bash
 git clone https://github.com/v-yatskin/vibe-discovery-kb-tool
-cd kb-tool
+cd vibe-discovery-kb-tool
 npm install
 npm run build
 npm link   # makes `kb` available globally
@@ -118,7 +133,7 @@ kb --version
 kb --help
 ```
 
-To test against the sample vault, clone it separately:
+To test against the sample vault:
 
 ```bash
 git clone https://github.com/v-yatskin/vibe-disco-vault-test.git ~/vault-test
@@ -128,56 +143,66 @@ kb status
 
 ---
 
-## Install (for end users)
+## Architecture
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/v-yatskin/vibe-discovery-kb-tool/main/scripts/install.sh | bash
-```
+- **Language:** TypeScript, Node.js 20+
+- **Build:** compiled to CJS via `tsc`
+- **Dependencies:** `commander` (CLI), `fuse.js` (keyword search), `gray-matter` (frontmatter), `chalk` (colors), `@xenova/transformers` (embeddings — Phase 3), `ora` (spinners)
+- **Git:** shells out to `git` and `gh` — no JS git library
+- **Config:** `~/.kb/config.json` (vault path, author name)
+- **Per-vault state:** `.kb/vectors.json` (semantic index), `.kb/session.json` (active branch), `.kb/pending-edits.json` (kb edit tracking), `.kb/model/` (cached embedding model)
 
-The installer clones into `~/.kb/app`, installs dependencies, builds, and links `kb` globally. Requires Node 20+ (bail with instructions if missing).
+Design goals: zero manual setup, no API key, no per-token cost (uses the user's Claude Code subscription).
 
-After install, run `kb init` to scaffold a fresh vault from scratch — it prompts for vault path, product name, author, and team, then creates the full folder structure, templates, `.claude/` slash commands, `.gitignore`, and a `~/.kb/config.json`. For existing PoC vaults, `kb init --upgrade` adds any missing folders or slash commands without touching existing files.
-
-The end-user README lives in the vault repo — see `README.md` in the sample vault for the flow teammates will follow.
+Full design: [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
 ## Repository layout
 
 ```
-kb-tool/
+vibe-discovery-kb-tool/
 ├── src/
-│   ├── commands/          # one file per `kb <command>` (init, draft, publish, ...)
-│   ├── config/            # ~/.kb/config.json read/write
+│   ├── commands/          # one file per `kb <command>` (init, draft, publish, edit, link, retire, ...)
+│   ├── config/            # ~/.kb/config.json read/write + CWD-aware vault detection
 │   ├── schema/            # frontmatter validators per entity type
-│   ├── vault/             # folder + git helpers
+│   ├── search/            # embed (transformer.js) + vectors (cosine + diff)
+│   ├── vault/             # git helpers, reader, session, wikilinks, edits
 │   └── index.ts           # CLI entry
 ├── scaffold/              # seed files copied by `kb init`
 │   ├── templates/         # 9 entity templates
-│   ├── .claude/           # CLAUDE.md + 5 slash commands (with {{placeholders}})
+│   ├── .claude/           # CLAUDE.md + slash commands + subagents (with {{placeholders}})
+│   ├── .obsidian/         # app.json with team-friendly defaults
+│   ├── Bases/             # 7 starter .base files for Obsidian
+│   ├── _private/README.md
 │   ├── Home.md
 │   ├── README.md
 │   └── .gitignore
 ├── scripts/
 │   └── install.sh
+├── docs/                  # planning / design docs
 ├── package.json
 └── README.md
 ```
 
-Planning docs (`architecture.md`, `project-plan.md`, `execution-plan.md`, `user-journey.md`) live in the [vibe-discovery](https://github.com/v-yatskin/vibe-discovery) repo.
+---
+
+## Related repos
+
+- **[vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test)** — sample vault with realistic TaskFlow team data, committed `.claude/` slash commands, and working `.obsidian/` config. Clone it to see a populated vault in action.
 
 ---
 
 ## Contributing
 
-This is a small internal tool maintained by the TaskFlow team. If you're on the team:
+Small internal tool. If you're on the team:
 
 1. Open an issue describing the change
-2. Branch from `main` — use `feat/<topic>` or `fix/<topic>`
-3. `npm run build && npm test` before pushing
+2. Branch from `main` — `feat/<topic>` or `fix/<topic>`
+3. `npm run build` before pushing (no test suite yet)
 4. Open a PR, get one review, squash-merge
 
-The CLI surface is deliberately small. Before adding a command, check whether the behavior belongs in a slash command (AI-guided, lives in `.claude/commands/`) instead — that's usually the right layer.
+The CLI surface is deliberately small. Before adding a command, check whether the behavior belongs in a slash command (AI-guided, `.claude/commands/` → `scaffold/.claude/commands/`) or a subagent (`.claude/agents/`) instead — that's usually the right layer.
 
 ---
 

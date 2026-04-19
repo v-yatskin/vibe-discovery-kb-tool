@@ -14,7 +14,8 @@ let embedderPromise: Promise<Embedder> | null = null;
 export async function getEmbedder(): Promise<Embedder> {
   if (!embedderPromise) {
     embedderPromise = (async () => {
-      const mod: any = await import('@xenova/transformers');
+      // eslint-disable-next-line no-new-func
+      const mod: any = await (Function('return import("@xenova/transformers")')() as Promise<any>);
       mod.env.cacheDir = path.join(os.homedir(), '.kb', 'model');
       mod.env.allowLocalModels = false;
       // Suppress ONNX runtime warnings on stdout
