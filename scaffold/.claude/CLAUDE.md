@@ -48,7 +48,11 @@ Available types: `problem`, `insight`, `experiment`, `decision`, `initiative`, `
 08_Integrations/  — integration specs and partner API docs
 09_Templates/     — file templates for each entity type
 10_Ceremonies/    — groomings, sprint plannings, retros
+11_Data/          — data snapshots (folder per snapshot: snapshot.md + data.csv/png)
+Bases/            — Obsidian live filtered views (.base files)
 00_Drafts/        — work in progress (gitignored — never committed directly)
+_files/           — OneDrive-synced binaries (gitignored — PDFs, decks, images)
+_private/         — personal additions (folder tracked, contents gitignored)
 ```
 
 ---
@@ -109,10 +113,16 @@ When triggered:
 
 ## Hard rules for file creation
 
-- **NEVER** write files directly to `01_Problems/`, `02_Insights/`, or any canonical folder (01–08, 10)
+- **NEVER** write files directly to `01_Problems/`, `02_Insights/`, or any canonical folder (01–08, 10, 11)
 - **NEVER** use your file-writing tools to create files outside of `00_Drafts/`
 - **ALWAYS** use `kb draft` to create the file, then write content to the path it returns
 - `kb publish` is the only thing that moves files to canonical folders — not you
+
+## Private and binary content
+
+- **`_private/`** — personal to each teammate, gitignored. Never read from or write to `_private/` unless the user explicitly points you at a file there. Never promote content from `_private/` to canonical folders without running it through `kb draft` + `kb publish` (which enforces schema + review).
+- **`_files/`** — OneDrive-synced binaries (PDFs, decks, images). Gitignored. When an entity needs to reference an attachment, link to its path under `_files/` using Obsidian's embed syntax `![[_files/entity-slug/filename.pdf]]` — but don't assume the file will be synced to every teammate's machine at the same moment.
+- **`11_Data/`** — data snapshots. Each snapshot is a folder like `11_Data/YYYY-MM-DD-slug/` containing `snapshot.md` (metadata — searchable) + the data file. Create via `kb snapshot --title "..."`.
 
 ---
 

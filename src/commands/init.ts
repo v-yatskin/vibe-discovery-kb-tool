@@ -8,7 +8,7 @@ import { getConfig } from '../config';
 
 const DEFAULT_VAULT_PATH = path.join(os.homedir(), 'Documents', 'ProductVault');
 
-// v1 canonical folder set. Phase 8 adds _files/, _private/, 11_Data/.
+// v1 + Phase 8 folder set.
 const CANONICAL_FOLDERS = [
   '00_Drafts',
   '01_Problems',
@@ -21,8 +21,13 @@ const CANONICAL_FOLDERS = [
   '08_Integrations',
   '09_Templates',
   '10_Ceremonies',
+  '11_Data',
+  '_files',
+  '_private',
   'archive',
   '.obsidian',
+  '.claude/agents',
+  '.claude/agents.private',
 ];
 
 interface InitAnswers {
@@ -234,6 +239,16 @@ async function freshInit(scaffoldDir: string) {
     }
   }
 
+  // _private/README.md — only file committed from _private/
+  const privateReadmeSrc = path.join(scaffoldDir, '_private', 'README.md');
+  if (fs.existsSync(privateReadmeSrc)) {
+    fs.writeFileSync(
+      path.join(vaultPath, '_private', 'README.md'),
+      fs.readFileSync(privateReadmeSrc, 'utf-8'),
+      'utf-8'
+    );
+  }
+
   // git init
   if (!isGitRepo(vaultPath)) {
     try {
@@ -349,6 +364,15 @@ async function upgradeInit(scaffoldDir: string) {
         added.push(`Bases/${entry}`);
       }
     }
+  }
+
+  // Missing _private/README.md (Phase 8 — skeleton file so the folder ships via clone)
+  const privateReadmeSrc = path.join(scaffoldDir, '_private', 'README.md');
+  const privateReadmeDest = path.join(vaultPath, '_private', 'README.md');
+  if (fs.existsSync(privateReadmeSrc) && !fs.existsSync(privateReadmeDest)) {
+    fs.mkdirSync(path.dirname(privateReadmeDest), { recursive: true });
+    fs.writeFileSync(privateReadmeDest, fs.readFileSync(privateReadmeSrc, 'utf-8'), 'utf-8');
+    added.push('_private/README.md');
   }
 
   // Post-merge hook

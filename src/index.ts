@@ -10,6 +10,7 @@ import { initCommand } from './commands/init';
 import { updatesCommand } from './commands/updates';
 import { indexCommand } from './commands/index-cmd';
 import { baseCommand } from './commands/base';
+import { snapshotCommand } from './commands/snapshot';
 
 const program = new Command();
 
@@ -23,6 +24,13 @@ program
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('snapshot')
+  .description('Create a dated data snapshot folder under 11_Data/')
+  .option('--title <title>', 'Snapshot title (becomes the slug)')
+  .option('--date <date>', 'Snapshot date (YYYY-MM-DD, default today)')
+  .action((options) => snapshotCommand(options));
 
 program
   .command('base')
