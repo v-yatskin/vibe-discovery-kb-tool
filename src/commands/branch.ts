@@ -114,7 +114,7 @@ export async function branchCommand(options: {
 
     writeSession(vaultPath, session);
     console.log(chalk.dim('\n  Session saved to .kb/session.json'));
-    console.log(chalk.dim('  Artifacts accumulate as you run kb structure.'));
+    console.log(chalk.dim('  Artifacts accumulate as you run kb publish.'));
     console.log(chalk.dim('  When done: kb branch --close  (push + PR + merge happens then)\n'));
     return;
   }

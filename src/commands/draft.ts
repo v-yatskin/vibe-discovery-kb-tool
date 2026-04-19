@@ -52,7 +52,7 @@ export function draftCommand(options: { type: string; title?: string }) {
   console.log(`  ${chalk.white(path.join('00_Drafts', filename))}`);
   console.log(
     chalk.dim(
-      `\n  Fill in the fields, then run:  kb structure ${filename}\n`
+      `\n  Fill in the fields, then run:  kb publish ${filename}\n`
     )
   );
 }

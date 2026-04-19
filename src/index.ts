@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { listCommand } from './commands/list';
 import { draftCommand } from './commands/draft';
-import { structureCommand } from './commands/structure';
+import { publishCommand } from './commands/publish';
 import { searchCommand } from './commands/search';
 import { statusCommand } from './commands/status';
 import { branchCommand } from './commands/branch';
@@ -28,9 +28,9 @@ program
   .action((options) => draftCommand(options));
 
 program
-  .command('structure [filename]')
+  .command('publish [filename]')
   .description('Validate schema and commit a draft to the vault')
-  .action((filename) => structureCommand(filename));
+  .action((filename) => publishCommand(filename));
 
 program
   .command('search <query>')

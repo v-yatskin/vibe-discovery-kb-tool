@@ -103,7 +103,7 @@ export function listCommand(
     // Drafts always last
     const drafts = readFolder(vaultPath, '00_Drafts');
     if (drafts.length > 0) {
-      printSection('DRAFTS — pending structure', drafts);
+      printSection('DRAFTS — pending publish', drafts);
       total += drafts.length;
     }
     console.log(chalk.dim(`\nTotal: ${total} files\n`));
@@ -114,7 +114,7 @@ export function listCommand(
 
   if (type === 'draft') {
     const drafts = readFolder(vaultPath, '00_Drafts');
-    printSection('DRAFTS — pending structure', drafts);
+    printSection('DRAFTS — pending publish', drafts);
     if (drafts.length === 0)
       console.log(chalk.dim('\n  No pending drafts in 00_Drafts/'));
     console.log();

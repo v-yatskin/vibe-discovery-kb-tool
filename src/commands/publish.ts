@@ -31,7 +31,7 @@ function prompt(question: string): Promise<string> {
   });
 }
 
-export async function structureCommand(filename?: string) {
+export async function publishCommand(filename?: string) {
   const vaultPath = getVaultPath();
 
   // No filename — show pending drafts and exit
@@ -45,7 +45,7 @@ export async function structureCommand(filename?: string) {
     drafts.forEach((d, i) =>
       console.log(`  ${chalk.dim(String(i + 1) + '.')} ${d.filename}`)
     );
-    console.log(chalk.dim('\nRun:  kb structure <filename>\n'));
+    console.log(chalk.dim('\nRun:  kb publish <filename>\n'));
     return;
   }
 
@@ -84,7 +84,7 @@ export async function structureCommand(filename?: string) {
     process.exit(1);
   }
 
-  console.log(chalk.bold(`\nStructuring: ${filename}`));
+  console.log(chalk.bold(`\nPublishing: ${filename}`));
   console.log(chalk.dim(`  type:   ${canonicalType}`));
   console.log(chalk.dim(`  target: ${targetFolder}/`));
 
@@ -147,7 +147,7 @@ export async function structureCommand(filename?: string) {
     try {
       gitAdd(vaultPath, targetPath);
       const title = fm.title || filename.replace('.md', '');
-      const commitMsg = `structure: ${title} (${canonicalType})`;
+      const commitMsg = `publish: ${title} (${canonicalType})`;
       gitCommit(vaultPath, commitMsg);
       console.log(chalk.green(`  ✓ Committed: "${commitMsg}" (local — pushed at kb branch --close)`));
 

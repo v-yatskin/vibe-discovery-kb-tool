@@ -66,7 +66,7 @@ export function statusCommand() {
   const drafts = readFolder(vaultPath, '00_Drafts');
   if (drafts.length > 0) {
     console.log(
-      `  ${chalk.yellow('Drafts')}           ${chalk.yellow.bold(String(drafts.length))}    pending structure`
+      `  ${chalk.yellow('Drafts')}           ${chalk.yellow.bold(String(drafts.length))}    pending publish`
     );
     drafts.forEach((d) =>
       console.log(chalk.dim(`    · ${d.filename}`))

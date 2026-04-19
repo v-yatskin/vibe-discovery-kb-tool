@@ -20,14 +20,13 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | Area | Done |
 |---|---|
 | `kb draft` | ✅ creates from template, writes to `00_Drafts/` |
-| `kb structure` | ✅ validates schema, moves file, local commit |
+| `kb publish` | ✅ validates schema, moves file, local commit |
 | `kb list [type]` | ✅ colored table, plural aliases, `--status` filter |
 | `kb status` | ✅ entity counts, git state, pending drafts |
 | `kb search` | ✅ keyword via fuse.js |
 | `kb branch --open / --close / --status` | ✅ full two-phase git flow (push + `gh pr create` + `gh pr merge` + `git pull`) |
-| Sample vault fixture | ✅ TaskFlow team, realistic data |
-| `.claude/CLAUDE.md` + slash commands | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis` |
-| Remote vault | ✅ https://github.com/v-yatskin/vibe-disco-vault-test |
+| Sample vault | ✅ lives in separate repo: [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) |
+| `.claude/CLAUDE.md` + slash commands (in the vault repo) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis` |
 
 ### In progress / not started
 
@@ -41,7 +40,7 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | User-facing vault README | Phase 5 (done in vault repo) |
 | Compiled binary (`bun build --compile`) | Phase 6 (optional) |
 
-Estimated remaining effort: **~13h across 2–3 focused sessions.** See [execution-plan.md](execution-plan.md).
+Estimated remaining effort: **~13h across 2–3 focused sessions.** See `execution-plan.md` in the [planning repo](https://github.com/v-yatskin/vibe-discovery).
 
 ---
 
@@ -53,7 +52,7 @@ Estimated remaining effort: **~13h across 2–3 focused sessions.** See [executi
 Draft phase          Publish phase (triggered by user)
 ─────────────        ──────────────────────────────────
 kb draft             kb branch --open   → local branch
-  ↓                  kb structure × N   → local commits
+  ↓                  kb publish × N     → local commits
 00_Drafts/           kb branch --close  → push + PR + merge + pull
 (gitignored)                             (atomic: all work lands together)
 ```
@@ -63,7 +62,7 @@ kb draft             kb branch --open   → local branch
 ### Layers
 
 1. **Input** — Claude Code conversation → `kb draft`
-2. **Processing** — `kb structure` validates frontmatter against entity schemas, moves file to canonical folder
+2. **Processing** — `kb publish` validates frontmatter against entity schemas, moves file to canonical folder
 3. **Storage** — markdown with typed frontmatter, one entity per file, append-only
 4. **Retrieval** — `kb search` (keyword now, semantic later) + Claude reads files directly
 
@@ -93,7 +92,7 @@ See `09_Templates/` in the sample vault for full schemas.
 
 Design goals: zero manual setup, no API key, no per-token cost (uses the user's Claude Code subscription).
 
-Full design: see [architecture.md](architecture.md) and [project-plan.md](project-plan.md).
+Full design lives in the planning repo: [vibe-discovery](https://github.com/v-yatskin/vibe-discovery) (see `architecture.md` and `project-plan.md`).
 
 ---
 
@@ -114,10 +113,11 @@ kb --version
 kb --help
 ```
 
-To test against the sample vault:
+To test against the sample vault, clone it separately:
 
 ```bash
-cd fixtures/task-tracker-vault
+git clone https://github.com/v-yatskin/vibe-disco-vault-test.git ~/vault-test
+cd ~/vault-test
 kb status
 ```
 
@@ -147,18 +147,16 @@ kb-tool/
 │   ├── git/               # git + gh wrappers
 │   ├── search/            # fuse + embeddings
 │   └── index.ts           # CLI entry
-├── fixtures/
-│   └── task-tracker-vault/    # sample vault for dev + tests
 ├── scripts/
 │   └── install.sh         # (Phase 5)
 ├── .claude/
 │   ├── CLAUDE.md          # instructions for Claude Code in this repo
 │   └── commands/          # slash commands
-├── architecture.md
-├── execution-plan.md
-├── project-plan.md
-└── user-journey.md
+├── package.json
+└── README.md
 ```
+
+Planning docs (`architecture.md`, `project-plan.md`, `execution-plan.md`, `user-journey.md`) live in the [vibe-discovery](https://github.com/v-yatskin/vibe-discovery) repo.
 
 ---
 
