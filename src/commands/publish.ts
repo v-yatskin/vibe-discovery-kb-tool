@@ -8,42 +8,8 @@ import { readFolder, FOLDER_MAP } from '../vault/reader';
 import { validate } from '../schema/validate';
 import { gitAdd, gitCommit, isGitRepo } from '../vault/git';
 import { readSession, writeSession } from '../vault/session';
-
-const LINKED_FIELD_LABELS: Record<string, string> = {
-  linked_problems: 'Linked problems',
-  linked_insights: 'Linked insights',
-  linked_experiments: 'Linked experiments',
-  linked_decisions: 'Linked decisions',
-  linked_initiatives: 'Linked initiatives',
-  linked_features: 'Linked features',
-};
-
-function buildLinksSection(fm: Record<string, any>): string {
-  const lines: string[] = [];
-  for (const [field, label] of Object.entries(LINKED_FIELD_LABELS)) {
-    const arr = fm[field];
-    if (!Array.isArray(arr) || arr.length === 0) continue;
-    const links = arr
-      .map((v) => String(v).trim())
-      .filter(Boolean)
-      .map((slug) => `[[${slug}]]`)
-      .join(', ');
-    if (links) lines.push(`- ${label}: ${links}`);
-  }
-  if (lines.length === 0) return '';
-  return ['## Links', '', ...lines, ''].join('\n');
-}
-
-// Append or replace an auto-generated `## Links` block at the end of the
-// body. Removes any existing `## Links` (and everything after it) first so
-// re-publishing an edited entity doesn't duplicate.
-function upsertLinksSection(body: string, fm: Record<string, any>): string {
-  const stripped = body.replace(/\n##\s+Links\s*\n[\s\S]*$/m, '\n');
-  const newSection = buildLinksSection(fm);
-  if (!newSection) return stripped;
-  const joiner = stripped.endsWith('\n\n') ? '' : stripped.endsWith('\n') ? '\n' : '\n\n';
-  return stripped + joiner + newSection;
-}
+import { upsertLinksSection } from '../vault/wikilinks';
+import { peekEdit, consumeEdit } from '../vault/edits';
 
 function toSlug(str: string): string {
   return str
@@ -103,6 +69,14 @@ export async function publishCommand(filename?: string) {
     console.error(chalk.red(`  ${e.message?.split('\n')[0]}`));
     console.log(chalk.dim('  Fix the frontmatter and try again.\n'));
     process.exit(1);
+  }
+
+  // Edit-draft path: created by `kb edit`. We overwrite the original
+  // canonical file in place rather than deriving a target from fm.type.
+  const editTarget = peekEdit(vaultPath, filename);
+  if (editTarget) {
+    await publishEdit(vaultPath, draftPath, filename, editTarget, fm, content, raw);
+    return;
   }
 
   // Resolve type — draft files may have subtype
@@ -210,5 +184,106 @@ export async function publishCommand(filename?: string) {
     console.log(chalk.dim('  (not a git repo — skipping commit)'));
   }
 
+  console.log();
+}
+
+// Handles drafts created by `kb edit` — update the canonical file in
+// place, no folder move, commit as `update: ...`.
+async function publishEdit(
+  vaultPath: string,
+  draftPath: string,
+  draftFilename: string,
+  canonicalRel: string,
+  fm: Record<string, any>,
+  content: string,
+  draftRaw: string
+): Promise<void> {
+  const targetPath = path.join(vaultPath, canonicalRel);
+  if (!fs.existsSync(targetPath)) {
+    console.error(chalk.red(`\nOriginal file no longer exists: ${canonicalRel}`));
+    console.log(chalk.dim('The edit is stale — remove the draft manually or retry kb edit.\n'));
+    process.exit(1);
+  }
+
+  console.log(chalk.bold(`\nPublishing edit: ${draftFilename}`));
+  console.log(chalk.dim(`  → ${canonicalRel} (in place)`));
+
+  // Schema validation (best effort — use draft's type)
+  const typeForValidation = String(fm.type || '').toLowerCase();
+  if (typeForValidation) {
+    const result = validate(typeForValidation, fm);
+    if (result.missing.length > 0) {
+      console.log(chalk.yellow('\n  Missing required fields:'));
+      result.missing.forEach((f) => console.log(chalk.yellow(`    ✗ ${f}`)));
+    }
+    if (result.invalid.length > 0) {
+      console.log(chalk.red('\n  Invalid values:'));
+      result.invalid.forEach((f) => console.log(chalk.red(`    ✗ ${f}`)));
+    }
+    if (result.valid) console.log(chalk.green('\n  ✓ Schema valid'));
+  }
+
+  // Diff frontmatter fields so the user can see what changed before accepting.
+  const originalRaw = fs.readFileSync(targetPath, 'utf-8');
+  const originalParsed = matter(originalRaw);
+  const originalFm = originalParsed.data || {};
+  const allKeys = new Set([...Object.keys(originalFm), ...Object.keys(fm)]);
+  const changes: string[] = [];
+  for (const k of allKeys) {
+    const a = JSON.stringify(originalFm[k] ?? null);
+    const b = JSON.stringify(fm[k] ?? null);
+    if (a !== b) changes.push(`    ${k}: ${chalk.dim(a)} → ${chalk.white(b)}`);
+  }
+  if (changes.length > 0) {
+    console.log(chalk.bold('\n  Frontmatter changes:'));
+    changes.forEach((c) => console.log(c));
+  } else {
+    console.log(chalk.dim('\n  (no frontmatter changes — body edits only)'));
+  }
+
+  const bodyChanged = originalParsed.content.trim() !== content.trim();
+  if (bodyChanged) console.log(chalk.dim('\n  Body: changed'));
+
+  const answer = await prompt(chalk.bold('\n  [a]ccept  [s]kip  > '));
+  if (!['a', 'accept'].includes(answer.toLowerCase())) {
+    console.log(chalk.dim('  Skipped — draft remains in 00_Drafts/.\n'));
+    return;
+  }
+
+  // Regenerate Links section from the edited fm
+  const bodyWithLinks = upsertLinksSection(content, fm);
+  const newContent = matter.stringify(bodyWithLinks, fm);
+  fs.writeFileSync(targetPath, newContent, 'utf-8');
+
+  // Archive + consume edit tracking
+  const archiveDir = path.join(vaultPath, 'archive');
+  if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+  fs.renameSync(draftPath, path.join(archiveDir, draftFilename));
+  consumeEdit(vaultPath, draftFilename);
+
+  console.log(chalk.green(`\n  ✓ Updated:  ${canonicalRel}`));
+  console.log(chalk.dim(`  ✓ Archived: archive/${draftFilename}`));
+
+  if (isGitRepo(vaultPath)) {
+    try {
+      gitAdd(vaultPath, targetPath);
+      const title = fm.title || path.basename(targetPath).replace(/\.md$/, '');
+      const changedFields = changes.length > 0 ? ` (${Object.keys(originalFm).filter((k) => JSON.stringify(originalFm[k]) !== JSON.stringify(fm[k])).join(', ') || 'content'})` : '';
+      const commitMsg = `update: ${title}${changedFields}`;
+      gitCommit(vaultPath, commitMsg);
+      console.log(chalk.green(`  ✓ Committed: "${commitMsg}" (local — push at kb branch --close)`));
+
+      const session = readSession(vaultPath);
+      if (session) {
+        const relPath = path.relative(vaultPath, targetPath);
+        if (!session.artifacts.includes(relPath)) {
+          session.artifacts.push(relPath);
+          writeSession(vaultPath, session);
+        }
+      }
+    } catch (e: any) {
+      console.log(chalk.yellow(`  ⚠ Git commit failed: ${e.message?.split('\n')[0]}`));
+    }
+  }
   console.log();
 }

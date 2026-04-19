@@ -6,6 +6,9 @@ import chalk from 'chalk';
 import * as readline from 'readline';
 import { getConfig } from '../config';
 import { findOneDriveCandidates, ensureFilesSymlink } from './files';
+import matter from 'gray-matter';
+import { upsertLinksSection } from '../vault/wikilinks';
+import { readAllCanonical } from '../vault/reader';
 
 const DEFAULT_VAULT_PATH = path.join(os.homedir(), 'Documents', 'ProductVault');
 
@@ -413,6 +416,21 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
     }
   }
 
+  // Only add missing team subagents
+  const claudeAgentsSrc = path.join(scaffoldDir, '.claude', 'agents');
+  const claudeAgentsDest = path.join(vaultPath, '.claude', 'agents');
+  if (fs.existsSync(claudeAgentsSrc)) {
+    fs.mkdirSync(claudeAgentsDest, { recursive: true });
+    for (const entry of fs.readdirSync(claudeAgentsSrc)) {
+      if (entry === '.gitkeep') continue; // placeholder, skip once real agents exist
+      const dest = path.join(claudeAgentsDest, entry);
+      if (!fs.existsSync(dest)) {
+        fs.writeFileSync(dest, substitute(fs.readFileSync(path.join(claudeAgentsSrc, entry), 'utf-8'), vars), 'utf-8');
+        added.push(`.claude/agents/${entry}`);
+      }
+    }
+  }
+
   // Missing templates
   const templatesSrc = path.join(scaffoldDir, 'templates');
   const templatesDest = path.join(vaultPath, '09_Templates');
@@ -484,6 +502,35 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
   // Post-merge hook
   const hookState = installPostMergeHook(vaultPath);
   if (hookState === 'installed') added.push('.git/hooks/post-merge');
+
+  // Backfill `## Links` sections on existing canonical files. Phase 7
+  // added auto-generation to `kb publish`, but files published before
+  // that (or before Phase 7 shipped) never got the section. This walks
+  // all canonical files, regenerates the section from frontmatter, and
+  // writes only when changed. Idempotent.
+  try {
+    const canonical = readAllCanonical(vaultPath);
+    let updated = 0;
+    for (const file of canonical) {
+      const original = fs.readFileSync(file.path, 'utf-8');
+      const parsed = matter(original);
+      const fm = parsed.data || {};
+      const hasAnyLinks = Object.keys(fm).some(
+        (k) => k.startsWith('linked_') && Array.isArray(fm[k]) && fm[k].length > 0
+      );
+      if (!hasAnyLinks) continue;
+      const newBody = upsertLinksSection(parsed.content, fm);
+      if (newBody === parsed.content) continue;
+      const rewritten = matter.stringify(newBody, fm);
+      if (rewritten !== original) {
+        fs.writeFileSync(file.path, rewritten, 'utf-8');
+        updated++;
+      }
+    }
+    if (updated > 0) added.push(`regenerated ## Links in ${updated} canonical file(s)`);
+  } catch (e: any) {
+    console.log(chalk.yellow(`  ⚠ Could not backfill wikilinks: ${e.message}`));
+  }
 
   if (added.length === 0) {
     console.log(chalk.dim('  Everything up to date — nothing to add.\n'));

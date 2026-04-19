@@ -32,6 +32,9 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | `kb publish` wikilink auto-generation | ✅ Phase 7 — auto-appends `## Links` section with `[[wikilinks]]` from frontmatter, idempotent |
 | `kb base --list` + 7 seeded `.base` files | ✅ Phase 7 — Obsidian live filtered views (open-problems, active-initiatives, high-confidence-insights, my-drafts, recent-decisions, orphan-insights, stale-initiatives) |
 | `/graph [entity]` slash command | ✅ Phase 7 — text summary of the link graph around an entity |
+| `11_Data/`, `_files/`, `_private/` + `kb snapshot` + `kb files --link` | ✅ Phase 8 — data snapshots, OneDrive-synced binaries, personal workspace |
+| `kb edit` + `kb link` + `kb retire` | ✅ Phase 9 — safe updates, link management, retirement with backlink warnings |
+| Subagents `kb-reviewer`, `link-finder`, `vault-curator` + `/edit /link /curate` slash commands | ✅ Phase 9 — curation & review workflows |
 | `scripts/install.sh` | ✅ clone + build + link |
 
 ### In progress / not started

@@ -12,6 +12,9 @@ import { indexCommand } from './commands/index-cmd';
 import { baseCommand } from './commands/base';
 import { snapshotCommand } from './commands/snapshot';
 import { filesCommand } from './commands/files';
+import { editCommand } from './commands/edit';
+import { linkCommand } from './commands/link';
+import { retireCommand } from './commands/retire';
 
 const program = new Command();
 
@@ -25,6 +28,22 @@ program
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('edit <file>')
+  .description('Copy a canonical file back to 00_Drafts/ so you can edit it; kb publish will update in place')
+  .action((file) => editCommand(file));
+
+program
+  .command('link <source> <target>')
+  .description('Add target to source\'s linked_[type] frontmatter, regenerate ## Links, commit locally')
+  .action((src, tgt) => linkCommand(src, tgt));
+
+program
+  .command('retire <file>')
+  .description('Move a canonical file to archive/ with a reason; warn about inbound links')
+  .requiredOption('--reason <reason>', 'Why this is being retired (required)')
+  .action((file, options) => retireCommand(file, options));
 
 program
   .command('files')

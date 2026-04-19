@@ -1,7 +1,8 @@
 import { execSync } from 'child_process';
 
-export function gitAdd(vaultPath: string, filePath: string): void {
-  execSync(`git add "${filePath}"`, { cwd: vaultPath, stdio: 'pipe' });
+export function gitAdd(vaultPath: string, filePath: string, opts: { force?: boolean } = {}): void {
+  const flag = opts.force ? '-f ' : '';
+  execSync(`git add ${flag}"${filePath}"`, { cwd: vaultPath, stdio: 'pipe' });
 }
 
 export function gitCommit(vaultPath: string, message: string): void {
