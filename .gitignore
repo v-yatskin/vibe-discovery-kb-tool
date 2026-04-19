@@ -4,3 +4,6 @@ dist/
 *.log
 .env
 .env.local
+
+# Nested sample vault — its own repo at v-yatskin/vibe-disco-vault-test
+fixtures/
