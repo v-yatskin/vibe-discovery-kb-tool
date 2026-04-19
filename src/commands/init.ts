@@ -301,6 +301,15 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
     );
   }
 
+  // .obsidian/app.json — pre-configure key settings so teammates get
+  // "show all file types" + "_files/ as attachment folder" without manual setup
+  const obsidianAppSrc = path.join(scaffoldDir, '.obsidian', 'app.json');
+  const obsidianAppDest = path.join(vaultPath, '.obsidian', 'app.json');
+  if (fs.existsSync(obsidianAppSrc)) {
+    fs.mkdirSync(path.dirname(obsidianAppDest), { recursive: true });
+    fs.writeFileSync(obsidianAppDest, fs.readFileSync(obsidianAppSrc, 'utf-8'), 'utf-8');
+  }
+
   // git init
   if (!isGitRepo(vaultPath)) {
     try {
@@ -439,6 +448,37 @@ async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
     fs.mkdirSync(path.dirname(privateReadmeDest), { recursive: true });
     fs.writeFileSync(privateReadmeDest, fs.readFileSync(privateReadmeSrc, 'utf-8'), 'utf-8');
     added.push('_private/README.md');
+  }
+
+  // .obsidian/app.json — install if missing; merge key settings if present
+  // but don't clobber user customizations
+  const obsidianAppSrc = path.join(scaffoldDir, '.obsidian', 'app.json');
+  const obsidianAppDest = path.join(vaultPath, '.obsidian', 'app.json');
+  if (fs.existsSync(obsidianAppSrc)) {
+    fs.mkdirSync(path.dirname(obsidianAppDest), { recursive: true });
+    if (!fs.existsSync(obsidianAppDest)) {
+      fs.writeFileSync(obsidianAppDest, fs.readFileSync(obsidianAppSrc, 'utf-8'), 'utf-8');
+      added.push('.obsidian/app.json');
+    } else {
+      // Merge: existing wins, but fill in keys we care about if missing
+      try {
+        const existing = JSON.parse(fs.readFileSync(obsidianAppDest, 'utf-8'));
+        const scaffold = JSON.parse(fs.readFileSync(obsidianAppSrc, 'utf-8'));
+        let changed = false;
+        for (const [k, v] of Object.entries(scaffold)) {
+          if (!(k in existing)) {
+            existing[k] = v;
+            changed = true;
+          }
+        }
+        if (changed) {
+          fs.writeFileSync(obsidianAppDest, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
+          added.push('.obsidian/app.json (merged missing keys)');
+        }
+      } catch {
+        // Parse error — leave alone, user can fix manually
+      }
+    }
   }
 
   // Post-merge hook
