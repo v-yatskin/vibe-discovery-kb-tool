@@ -10,6 +10,7 @@ import { gitAdd, gitCommit, isGitRepo } from '../vault/git';
 import { readSession, writeSession } from '../vault/session';
 import { upsertLinksSection } from '../vault/wikilinks';
 import { peekEdit, consumeEdit } from '../vault/edits';
+import { indexCommand } from './index-cmd';
 
 function toSlug(str: string): string {
   return str
@@ -184,6 +185,8 @@ export async function publishCommand(filename?: string) {
     console.log(chalk.dim('  (not a git repo — skipping commit)'));
   }
 
+  await indexCommand({ diff: true, quiet: true });
+
   console.log();
 }
 
@@ -285,5 +288,8 @@ async function publishEdit(
       console.log(chalk.yellow(`  ⚠ Git commit failed: ${e.message?.split('\n')[0]}`));
     }
   }
+
+  await indexCommand({ diff: true, quiet: true });
+
   console.log();
 }
