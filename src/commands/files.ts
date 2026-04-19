@@ -9,13 +9,36 @@ import { getVaultPath } from '../config';
 // This command automates the "symlink _files/ into your OneDrive folder" setup
 // so teammates don't have to eyeball the CloudStorage path and run `ln -s`.
 
-function findOneDriveCandidates(): string[] {
+export function findOneDriveCandidates(): string[] {
   const cloudStorage = path.join(os.homedir(), 'Library', 'CloudStorage');
   if (!fs.existsSync(cloudStorage)) return [];
   return fs
     .readdirSync(cloudStorage)
     .filter((name) => name.startsWith('OneDrive'))
     .map((name) => path.join(cloudStorage, name));
+}
+
+// Non-interactive helper used by `kb init` during setup. Throws on error
+// so the caller can decide how to surface (print, skip, abort).
+export async function ensureFilesSymlink(
+  vaultPath: string,
+  target: string,
+  opts: { force?: boolean } = {}
+): Promise<void> {
+  const filesPath = path.join(vaultPath, '_files');
+  const state = describeFilesState(filesPath);
+
+  if (state.kind === 'dir-with-content') {
+    throw new Error(`_files/ already contains ${state.entries} entries — move them first`);
+  }
+  if (state.kind === 'symlink' && !opts.force) {
+    throw new Error(`_files/ is already symlinked to ${state.target}`);
+  }
+
+  if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+  if (state.kind === 'symlink') fs.unlinkSync(filesPath);
+  else if (state.kind === 'empty-dir') fs.rmdirSync(filesPath);
+  fs.symlinkSync(target, filesPath, 'dir');
 }
 
 async function pickCandidate(candidates: string[]): Promise<string> {
@@ -76,7 +99,7 @@ async function linkAction(explicitTarget?: string, force?: boolean) {
   if (explicitTarget) {
     target = path.resolve(explicitTarget);
   } else {
-    const candidates = findOneDriveCandidates();
+    const candidates: string[] = findOneDriveCandidates();
     if (candidates.length === 0) {
       console.error(chalk.red(`\nNo OneDrive folder detected under ~/Library/CloudStorage/`));
       console.log(chalk.dim('Install OneDrive and sign in, or re-run with an explicit path:'));

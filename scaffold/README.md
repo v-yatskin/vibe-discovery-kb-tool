@@ -52,6 +52,23 @@ git clone [VAULT_REPO_URL] ~/Documents/{{VAULT_NAME}}
 - **Claude Code:** drag the `{{VAULT_NAME}}` folder in as a project.
 - **Obsidian:** "Open folder as vault" → pick `{{VAULT_NAME}}`.
 
+### 6. (Optional) Sync `_files/` with OneDrive
+
+`_files/` is where PDFs, decks, and other binaries live. It's gitignored — git is poor at binaries, so OneDrive handles sync instead. Run:
+
+```bash
+cd ~/Documents/{{VAULT_NAME}}
+kb files --link
+```
+
+`kb` auto-detects OneDrive on your Mac, prompts to pick an account if there's more than one, asks for a folder name, and creates the symlink. One-time setup per teammate.
+
+If a teammate already shared a specific OneDrive folder with you, pass the path:
+
+```bash
+kb files --link "$HOME/Library/CloudStorage/OneDrive-YourOrg/TheSharedFolder"
+```
+
 That's it. Put Claude Code on the left, Obsidian on the right.
 
 ---

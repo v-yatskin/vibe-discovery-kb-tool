@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import * as readline from 'readline';
 import { getConfig } from '../config';
+import { findOneDriveCandidates, ensureFilesSymlink } from './files';
 
 const DEFAULT_VAULT_PATH = path.join(os.homedir(), 'Documents', 'ProductVault');
 
@@ -134,6 +135,54 @@ function isGitRepo(p: string): boolean {
   return fs.existsSync(path.join(p, '.git'));
 }
 
+// Interactive OneDrive setup. Returns a log line to show the user.
+// Silent if they opt out. Never throws — OneDrive is optional.
+async function setupOneDriveSync(
+  session: PromptSession,
+  vaultPath: string,
+  defaultFolderName: string
+): Promise<string | null> {
+  const filesPath = path.join(vaultPath, '_files');
+  // If _files/ doesn't exist or is already a symlink, skip gracefully.
+  if (!fs.existsSync(filesPath)) return null;
+  const stat = fs.lstatSync(filesPath);
+  if (stat.isSymbolicLink()) return null; // already linked, don't offer again
+
+  const candidates = findOneDriveCandidates();
+  if (candidates.length === 0) {
+    return chalk.dim('  (OneDrive not detected — install it later and run `kb files --link` to enable binary sync)');
+  }
+
+  const want = await session.ask(
+    chalk.cyan('Sync _files/ with OneDrive now?'),
+    'Y/n'
+  );
+  if (want.toLowerCase().startsWith('n')) return null;
+
+  let account = candidates[0];
+  if (candidates.length > 1) {
+    console.log(chalk.bold('\n  OneDrive accounts found:'));
+    candidates.forEach((c, i) => console.log(`    ${i + 1}. ${path.basename(c)}`));
+    const choice = await session.ask(chalk.cyan('  Pick one by number'), '1');
+    const idx = parseInt(choice, 10) - 1;
+    if (!isNaN(idx) && idx >= 0 && idx < candidates.length) {
+      account = candidates[idx];
+    }
+  }
+
+  const folderName = await session.ask(
+    chalk.cyan('  OneDrive folder name?'),
+    defaultFolderName
+  );
+  const target = path.join(account, folderName);
+  try {
+    await ensureFilesSymlink(vaultPath, target);
+    return chalk.green(`  ✓ _files/ → ${target}`);
+  } catch (e: any) {
+    return chalk.yellow(`  ⚠ Could not link _files/: ${e.message} (run \`kb files --link\` later)`);
+  }
+}
+
 const POST_MERGE_HOOK = `#!/bin/sh
 # Installed by kb init — runs after git merge / git pull.
 # Generates an update log and refreshes the semantic search index.
@@ -172,12 +221,15 @@ async function gatherAnswers(session: PromptSession): Promise<InitAnswers> {
 async function freshInit(scaffoldDir: string) {
   const session = new PromptSession();
   await session.open();
-  let answers: InitAnswers;
   try {
-    answers = await gatherAnswers(session);
+    await runFreshInit(scaffoldDir, session);
   } finally {
     session.close();
   }
+}
+
+async function runFreshInit(scaffoldDir: string, session: PromptSession) {
+  const answers = await gatherAnswers(session);
   const { vaultPath, productName, author, team } = answers;
 
   if (fs.existsSync(vaultPath) && fs.readdirSync(vaultPath).length > 0) {
@@ -265,6 +317,9 @@ async function freshInit(scaffoldDir: string) {
   // Post-merge hook
   installPostMergeHook(vaultPath);
 
+  // OneDrive sync setup for _files/ (optional, asks the user)
+  const oneDriveLog = await setupOneDriveSync(session, vaultPath, `${productName} Files`);
+
   // Config
   const configDir = path.join(os.homedir(), '.kb');
   if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
@@ -281,12 +336,13 @@ async function freshInit(scaffoldDir: string) {
 
   const hasGh = checkGh();
 
-  console.log(chalk.green.bold(`✓ Vault created\n`));
+  console.log(chalk.green.bold(`\n✓ Vault created\n`));
   console.log(`  ${chalk.white('Path:')}     ${vaultPath}`);
   console.log(`  ${chalk.white('Product:')}  ${productName}`);
   console.log(`  ${chalk.white('Author:')}   ${author}`);
   if (team.length) console.log(`  ${chalk.white('Team:')}     ${team.join(', ')}`);
   console.log(`  ${chalk.white('Config:')}   ${configPath}`);
+  if (oneDriveLog) console.log(oneDriveLog);
 
   console.log(chalk.bold('\nNext steps:'));
   console.log(`  1. Open ${path.basename(vaultPath)}/ in Claude Code (drag it into the app as a project)`);
@@ -301,6 +357,16 @@ async function freshInit(scaffoldDir: string) {
 }
 
 async function upgradeInit(scaffoldDir: string) {
+  const session = new PromptSession();
+  await session.open();
+  try {
+    await runUpgradeInit(scaffoldDir, session);
+  } finally {
+    session.close();
+  }
+}
+
+async function runUpgradeInit(scaffoldDir: string, session: PromptSession) {
   const vaultPath = process.cwd();
   console.log(chalk.bold(`\nkb init --upgrade — ${vaultPath}\n`));
 
@@ -384,6 +450,14 @@ async function upgradeInit(scaffoldDir: string) {
   } else {
     console.log(chalk.green(`✓ Added ${added.length} item${added.length === 1 ? '' : 's'}:`));
     added.forEach((a) => console.log(chalk.dim(`  + ${a}`)));
+    console.log();
+  }
+
+  // OneDrive sync setup (only if _files/ exists and isn't already linked)
+  const defaultName = `${path.basename(vaultPath)} Files`;
+  const oneDriveLog = await setupOneDriveSync(session, vaultPath, defaultName);
+  if (oneDriveLog) {
+    console.log(oneDriveLog);
     console.log();
   }
 }
