@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+const __kbNodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+if (__kbNodeMajor < 20) {
+  process.stderr.write(
+    `\x1b[33m⚠ kb requires Node.js 20+ (running ${process.version}).\x1b[0m\n` +
+    `  Semantic search (kb index/search) is disabled on this version.\n` +
+    `  Upgrade: https://nodejs.org (pick LTS) or \`nvm install 20\`.\n\n`
+  );
+}
 import { Command } from 'commander';
 import { listCommand } from './commands/list';
 import { draftCommand } from './commands/draft';

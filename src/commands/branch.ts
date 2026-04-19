@@ -170,7 +170,7 @@ export async function branchCommand(options: {
       // Squash-merge PR
       if (prNumber > 0) {
         try {
-          run(`gh pr merge ${prNumber} --squash --delete-branch --yes`, vaultPath);
+          run(`gh pr merge ${prNumber} --squash --delete-branch`, vaultPath);
           console.log(chalk.green(`✓ PR #${prNumber} squash-merged`));
           mergedViaGh = true;
         } catch (e: any) {
