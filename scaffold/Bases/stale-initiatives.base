@@ -1,0 +1,16 @@
+filters:
+  and:
+    - 'type == "initiative"'
+    - 'status == "in_progress"'
+    - 'file.mtime < now() - "30 days"'
+views:
+  - type: table
+    name: "Stale initiatives (in-progress, untouched 30+ days)"
+    order:
+      - file.name
+      - note.title
+      - note.priority
+      - file.mtime
+    groupBy:
+      property: file.mtime
+      direction: ASC

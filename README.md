@@ -29,6 +29,9 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | Sample vault | ✅ lives in separate repo: [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) |
 | `.claude/CLAUDE.md` + slash commands (scaffolded into every new vault by `kb init`) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis`, `/updates`, `/roadmap`, `/preserve`, `/engineer-critique`, `/spec-writer` |
 | `kb init` + `kb init --upgrade` | ✅ Phase 1 — scaffolds a fresh vault from `scaffold/` with placeholder substitution |
+| `kb publish` wikilink auto-generation | ✅ Phase 7 — auto-appends `## Links` section with `[[wikilinks]]` from frontmatter, idempotent |
+| `kb base --list` + 7 seeded `.base` files | ✅ Phase 7 — Obsidian live filtered views (open-problems, active-initiatives, high-confidence-insights, my-drafts, recent-decisions, orphan-insights, stale-initiatives) |
+| `/graph [entity]` slash command | ✅ Phase 7 — text summary of the link graph around an entity |
 | `scripts/install.sh` | ✅ clone + build + link |
 
 ### In progress / not started

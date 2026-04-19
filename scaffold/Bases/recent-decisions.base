@@ -1,0 +1,15 @@
+filters:
+  and:
+    - 'type == "decision"'
+views:
+  - type: table
+    name: "Recent decisions"
+    limit: 20
+    order:
+      - file.name
+      - note.title
+      - note.status
+      - note.created
+    groupBy:
+      property: note.created
+      direction: DESC

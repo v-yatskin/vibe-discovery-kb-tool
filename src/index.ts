@@ -9,6 +9,7 @@ import { branchCommand } from './commands/branch';
 import { initCommand } from './commands/init';
 import { updatesCommand } from './commands/updates';
 import { indexCommand } from './commands/index-cmd';
+import { baseCommand } from './commands/base';
 
 const program = new Command();
 
@@ -22,6 +23,12 @@ program
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('base')
+  .description('List the vault\'s Obsidian bases (.base files under Bases/)')
+  .option('--list', 'List all bases (default)')
+  .action((options) => baseCommand(options));
 
 program
   .command('index')

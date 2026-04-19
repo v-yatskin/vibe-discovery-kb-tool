@@ -1,0 +1,16 @@
+filters:
+  and:
+    - 'type == "insight"'
+    - 'confidence == "high"'
+views:
+  - type: table
+    name: "High-confidence insights"
+    order:
+      - file.name
+      - note.title
+      - note.source
+      - note.linked_problems
+      - note.created
+    groupBy:
+      property: note.created
+      direction: DESC

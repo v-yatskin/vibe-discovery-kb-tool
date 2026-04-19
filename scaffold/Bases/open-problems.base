@@ -1,0 +1,15 @@
+filters:
+  and:
+    - 'type == "problem"'
+    - 'status == "open"'
+views:
+  - type: table
+    name: "Open problems"
+    order:
+      - file.name
+      - note.title
+      - note.severity
+      - note.linked_insights
+    groupBy:
+      property: note.severity
+      direction: DESC

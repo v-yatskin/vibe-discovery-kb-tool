@@ -1,0 +1,18 @@
+filters:
+  and:
+    - 'type == "initiative"'
+    - or:
+        - 'status == "planned"'
+        - 'status == "in_progress"'
+views:
+  - type: table
+    name: "Active initiatives"
+    order:
+      - file.name
+      - note.title
+      - note.status
+      - note.priority
+      - note.linked_problems
+    groupBy:
+      property: note.status
+      direction: DESC

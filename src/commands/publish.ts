@@ -9,6 +9,42 @@ import { validate } from '../schema/validate';
 import { gitAdd, gitCommit, isGitRepo } from '../vault/git';
 import { readSession, writeSession } from '../vault/session';
 
+const LINKED_FIELD_LABELS: Record<string, string> = {
+  linked_problems: 'Linked problems',
+  linked_insights: 'Linked insights',
+  linked_experiments: 'Linked experiments',
+  linked_decisions: 'Linked decisions',
+  linked_initiatives: 'Linked initiatives',
+  linked_features: 'Linked features',
+};
+
+function buildLinksSection(fm: Record<string, any>): string {
+  const lines: string[] = [];
+  for (const [field, label] of Object.entries(LINKED_FIELD_LABELS)) {
+    const arr = fm[field];
+    if (!Array.isArray(arr) || arr.length === 0) continue;
+    const links = arr
+      .map((v) => String(v).trim())
+      .filter(Boolean)
+      .map((slug) => `[[${slug}]]`)
+      .join(', ');
+    if (links) lines.push(`- ${label}: ${links}`);
+  }
+  if (lines.length === 0) return '';
+  return ['## Links', '', ...lines, ''].join('\n');
+}
+
+// Append or replace an auto-generated `## Links` block at the end of the
+// body. Removes any existing `## Links` (and everything after it) first so
+// re-publishing an edited entity doesn't duplicate.
+function upsertLinksSection(body: string, fm: Record<string, any>): string {
+  const stripped = body.replace(/\n##\s+Links\s*\n[\s\S]*$/m, '\n');
+  const newSection = buildLinksSection(fm);
+  if (!newSection) return stripped;
+  const joiner = stripped.endsWith('\n\n') ? '' : stripped.endsWith('\n') ? '\n' : '\n\n';
+  return stripped + joiner + newSection;
+}
+
 function toSlug(str: string): string {
   return str
     .toLowerCase()
@@ -127,7 +163,11 @@ export async function publishCommand(filename?: string) {
   if (canonicalFm.subtype) delete canonicalFm.subtype;
   canonicalFm.type = canonicalType;
 
-  const newContent = matter.stringify(content, canonicalFm);
+  // Regenerate the `## Links` section from linked_* frontmatter fields so
+  // Obsidian's backlink graph actually sees the connections. Idempotent —
+  // strips any prior "## Links" block before appending the new one.
+  const bodyWithLinks = upsertLinksSection(content, canonicalFm);
+  const newContent = matter.stringify(bodyWithLinks, canonicalFm);
 
   // Write to target folder
   const targetDir = path.join(vaultPath, targetFolder);

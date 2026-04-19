@@ -1,0 +1,22 @@
+# Insights with no linked_problems — curation target.
+# NOTE: Obsidian's Bases syntax for "empty array" isn't fully documented as of 1.9.
+# The `not` wrapper below works when Obsidian treats empty/missing arrays as falsy;
+# if your version doesn't pick these up, widen the base and filter visually.
+
+filters:
+  and:
+    - 'type == "insight"'
+    - not:
+        - 'note.linked_problems'
+views:
+  - type: table
+    name: "Orphan insights (no linked problem)"
+    order:
+      - file.name
+      - note.title
+      - note.confidence
+      - note.source
+      - note.created
+    groupBy:
+      property: note.created
+      direction: DESC

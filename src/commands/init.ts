@@ -220,6 +220,20 @@ async function freshInit(scaffoldDir: string) {
   fs.mkdirSync(claudeDest, { recursive: true });
   copyScaffoldDir(claudeSrc, claudeDest, vars, false, () => {});
 
+  // Bases → Bases/ (Obsidian-native live filtered views)
+  const basesSrc = path.join(scaffoldDir, 'Bases');
+  if (fs.existsSync(basesSrc)) {
+    const basesDest = path.join(vaultPath, 'Bases');
+    fs.mkdirSync(basesDest, { recursive: true });
+    for (const entry of fs.readdirSync(basesSrc)) {
+      fs.writeFileSync(
+        path.join(basesDest, entry),
+        fs.readFileSync(path.join(basesSrc, entry), 'utf-8'),
+        'utf-8'
+      );
+    }
+  }
+
   // git init
   if (!isGitRepo(vaultPath)) {
     try {
@@ -319,6 +333,20 @@ async function upgradeInit(scaffoldDir: string) {
       if (!fs.existsSync(dest)) {
         fs.writeFileSync(dest, substitute(fs.readFileSync(path.join(templatesSrc, entry), 'utf-8'), vars), 'utf-8');
         added.push(`09_Templates/${entry}`);
+      }
+    }
+  }
+
+  // Missing Bases (Phase 7)
+  const basesSrc = path.join(scaffoldDir, 'Bases');
+  const basesDest = path.join(vaultPath, 'Bases');
+  if (fs.existsSync(basesSrc)) {
+    fs.mkdirSync(basesDest, { recursive: true });
+    for (const entry of fs.readdirSync(basesSrc)) {
+      const dest = path.join(basesDest, entry);
+      if (!fs.existsSync(dest)) {
+        fs.writeFileSync(dest, fs.readFileSync(path.join(basesSrc, entry), 'utf-8'), 'utf-8');
+        added.push(`Bases/${entry}`);
       }
     }
   }
