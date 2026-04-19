@@ -122,6 +122,7 @@ When triggered:
 
 - **`_private/`** — personal to each teammate, gitignored. Never read from or write to `_private/` unless the user explicitly points you at a file there. Never promote content from `_private/` to canonical folders without running it through `kb draft` + `kb publish` (which enforces schema + review).
 - **`_files/`** — OneDrive-synced binaries (PDFs, decks, images). Gitignored. When an entity needs to reference an attachment, link to its path under `_files/` using Obsidian's embed syntax `![[_files/entity-slug/filename.pdf]]` — but don't assume the file will be synced to every teammate's machine at the same moment.
+  - **To discover what's in `_files/`, use `ls _files/` via bash** (recursively: `find _files/ -type f`). `_files/` is a symlink to a OneDrive folder; use bash for listing, and read individual files by path when referenced.
 - **`11_Data/`** — data snapshots. Each snapshot is a folder like `11_Data/YYYY-MM-DD-slug/` containing `snapshot.md` (metadata — searchable) + the data file. Create via `kb snapshot --title "..."`.
 
 ---
