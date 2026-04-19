@@ -57,19 +57,28 @@ npm run build --silent
 
 # --- link globally -----------------------------------------------------------
 
-say "Linking kb globally..."
-if npm install -g . --silent --no-audit --no-fund 2>/dev/null; then
-  :
-else
-  # npm's global prefix isn't writable — fall back to a user-local symlink.
-  LOCAL_BIN="$HOME/.local/bin"
-  mkdir -p "$LOCAL_BIN"
-  ln -sf "$INSTALL_DIR/dist/index.js" "$LOCAL_BIN/kb"
-  chmod +x "$INSTALL_DIR/dist/index.js"
-  case ":$PATH:" in
-    *":$LOCAL_BIN:"*) ;;
-    *) say "Add this to your ~/.zshrc: export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
-  esac
+LOCAL_BIN="$HOME/.local/bin"
+say "Linking kb to $LOCAL_BIN/kb..."
+mkdir -p "$LOCAL_BIN"
+ln -sf "$INSTALL_DIR/dist/index.js" "$LOCAL_BIN/kb"
+chmod +x "$INSTALL_DIR/dist/index.js"
+
+# Detect shell profile and append PATH export if not already present.
+PATH_LINE="export PATH=\"\$HOME/.local/bin:\$PATH\""
+SHELL_RC=""
+case "${SHELL:-}" in
+  */zsh)  SHELL_RC="$HOME/.zshrc" ;;
+  */bash) SHELL_RC="$HOME/.bashrc" ;;
+esac
+
+PATH_ADDED=false
+if [ -n "$SHELL_RC" ]; then
+  if ! grep -qF '.local/bin' "$SHELL_RC" 2>/dev/null; then
+    echo "" >> "$SHELL_RC"
+    echo "# Added by kb installer" >> "$SHELL_RC"
+    echo "$PATH_LINE" >> "$SHELL_RC"
+    PATH_ADDED=true
+  fi
 fi
 
 # --- done --------------------------------------------------------------------
@@ -77,9 +86,17 @@ fi
 echo ""
 ok "kb installed."
 echo ""
+if $PATH_ADDED; then
+  printf "%b!%b PATH updated in %s — run: source %s\n" "$color_green" "$color_reset" "$SHELL_RC" "$SHELL_RC"
+  echo ""
+elif ! command -v kb >/dev/null 2>&1; then
+  printf "%b!%b Add kb to your PATH: $PATH_LINE\n" "$color_green" "$color_reset"
+  echo ""
+fi
 echo "Next steps:"
-echo "  1. Verify:  kb --version"
-echo "  2. If you don't have gh yet:  brew install gh && gh auth login"
+echo "  1. Reload shell:  source ${SHELL_RC:-~/.zshrc}   (or open a new terminal)"
+echo "  2. Verify:        kb --version"
+echo "  3. If you don't have gh yet:  brew install gh && gh auth login"
 echo ""
 echo "  New vault:"
 echo "    kb init                          — scaffold a fresh vault (prompts for path, product, team)"
