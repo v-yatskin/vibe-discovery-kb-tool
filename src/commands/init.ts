@@ -138,6 +138,42 @@ function isGitRepo(p: string): boolean {
   return fs.existsSync(path.join(p, '.git'));
 }
 
+// Set up a remote GitHub repo. Returns a log line or null if skipped.
+async function setupGitRemote(
+  session: PromptSession,
+  vaultPath: string,
+  hasGh: boolean
+): Promise<string | null> {
+  const want = await session.ask(chalk.cyan('Set up a remote GitHub repo now?'), 'Y/n');
+  if (want.toLowerCase().startsWith('n')) return null;
+
+  if (hasGh) {
+    const vis = await session.ask(chalk.cyan('  Visibility (private/public)?'), 'private');
+    const repoName = path.basename(vaultPath).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    try {
+      const out = execSync(
+        `gh repo create "${repoName}" --${vis} --source . --remote origin --push`,
+        { cwd: vaultPath, stdio: 'pipe' }
+      ).toString().trim();
+      const url = out.match(/https:\/\/\S+/)?.at(0) ?? repoName;
+      return chalk.green(`  ✓ Repo created and pushed: ${url}`);
+    } catch (e: any) {
+      return chalk.yellow(`  ⚠ gh repo create failed: ${e.message.trim()}`);
+    }
+  }
+
+  // No gh — ask for an existing URL.
+  const url = await session.ask(chalk.cyan('  GitHub repo URL (leave blank to skip)?'), '');
+  if (!url) return null;
+  try {
+    execSync(`git remote add origin "${url}"`, { cwd: vaultPath, stdio: 'pipe' });
+    execSync('git push -u origin main', { cwd: vaultPath, stdio: 'pipe' });
+    return chalk.green(`  ✓ Remote set and pushed: ${url}`);
+  } catch (e: any) {
+    return chalk.yellow(`  ⚠ Could not push to ${url}: ${e.message.trim()}`);
+  }
+}
+
 // Interactive OneDrive setup. Returns a log line to show the user.
 // Silent if they opt out. Never throws — OneDrive is optional.
 async function setupOneDriveSync(
@@ -313,6 +349,8 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
     fs.writeFileSync(obsidianAppDest, fs.readFileSync(obsidianAppSrc, 'utf-8'), 'utf-8');
   }
 
+  const hasGh = checkGh();
+
   // git init
   if (!isGitRepo(vaultPath)) {
     try {
@@ -326,11 +364,22 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
     }
   }
 
+  // Initial commit so the vault is ready to push.
+  try {
+    execSync('git add .', { cwd: vaultPath, stdio: 'pipe' });
+    execSync(`git commit -m "feat: init vault"`, { cwd: vaultPath, stdio: 'pipe' });
+  } catch {
+    // Non-fatal — vault still usable without an initial commit.
+  }
+
   // Post-merge hook
   installPostMergeHook(vaultPath);
 
   // OneDrive sync setup for _files/ (optional, asks the user)
   const oneDriveLog = await setupOneDriveSync(session, vaultPath, `${productName} Files`);
+
+  // Remote GitHub repo setup (optional, asks the user)
+  const remoteLog = await setupGitRemote(session, vaultPath, hasGh);
 
   // Config
   const configDir = path.join(os.homedir(), '.kb');
@@ -346,8 +395,6 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
     'utf-8'
   );
 
-  const hasGh = checkGh();
-
   console.log(chalk.green.bold(`\n✓ Vault created\n`));
   console.log(`  ${chalk.white('Path:')}     ${vaultPath}`);
   console.log(`  ${chalk.white('Product:')}  ${productName}`);
@@ -355,6 +402,7 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
   if (team.length) console.log(`  ${chalk.white('Team:')}     ${team.join(', ')}`);
   console.log(`  ${chalk.white('Config:')}   ${configPath}`);
   if (oneDriveLog) console.log(oneDriveLog);
+  if (remoteLog) console.log(remoteLog);
 
   console.log(chalk.bold('\nNext steps:'));
   console.log(`  1. Open ${path.basename(vaultPath)}/ in Claude Code (drag it into the app as a project)`);
@@ -365,7 +413,9 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
     console.log(`  3. ${chalk.dim('gh CLI detected ✓')}`);
   }
   console.log(`  4. In Claude Code, type /resume to begin.\n`);
-  console.log(chalk.dim(`  Once you push this vault to GitHub, edit README.md and replace [VAULT_REPO_URL] with your repo URL.\n`));
+  if (!remoteLog) {
+    console.log(chalk.dim(`  No remote set yet — create a GitHub repo and run: git remote add origin <url> && git push -u origin main\n`));
+  }
 }
 
 async function upgradeInit(scaffoldDir: string) {
