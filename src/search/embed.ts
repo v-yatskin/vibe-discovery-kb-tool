@@ -11,7 +11,15 @@ type Embedder = (text: string, opts?: Record<string, unknown>) => Promise<{ data
 
 let embedderPromise: Promise<Embedder> | null = null;
 
+const NODE_MAJOR = parseInt(process.versions.node.split('.')[0], 10);
+
 export async function getEmbedder(): Promise<Embedder> {
+  if (NODE_MAJOR < 15) {
+    throw new Error(
+      `Semantic search requires Node.js 15+ (running ${process.version}). ` +
+      `Upgrade Node and re-run \`kb index\` to enable it.`
+    );
+  }
   if (!embedderPromise) {
     embedderPromise = (async () => {
       // eslint-disable-next-line no-new-func

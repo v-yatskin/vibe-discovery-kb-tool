@@ -24,6 +24,16 @@ function buildIndexText(file: VaultFile): string {
 export async function indexCommand(options: { diff?: boolean; quiet?: boolean; rebuild?: boolean }) {
   const vaultPath = getVaultPath();
   const quiet = !!options.quiet;
+
+  // Fail fast with a clear message if Node is too old to load onnxruntime (??= requires Node 15+).
+  const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+  if (nodeMajor < 15) {
+    if (!quiet) {
+      console.log(chalk.yellow(`\n⚠ Semantic indexing requires Node.js 15+ (running ${process.version}).`));
+      console.log(chalk.dim('  Upgrade Node and re-run `kb index` to enable semantic search.\n'));
+    }
+    return;
+  }
   const useDiff = !!options.diff && !options.rebuild;
 
   const files = readAllCanonical(vaultPath);
