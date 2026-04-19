@@ -16,7 +16,21 @@ color_reset="\033[0m"
 say()  { printf "%b→%b %s\n" "$color_dim" "$color_reset" "$*"; }
 ok()   { printf "%b✓%b %s\n" "$color_green" "$color_reset" "$*"; }
 die()  { printf "%b✗%b %s\n" "$color_red" "$color_reset" "$*" >&2; exit 1; }
-ask()  { printf "%b?%b %s " "$color_green" "$color_reset" "$*"; }
+
+# Open /dev/tty as fd 3 NOW — before bash reads more of the pipe.
+# This is the only safe way to get a real TTY handle in curl|bash.
+INTERACTIVE=false
+if exec 3</dev/tty 2>/dev/null; then
+  INTERACTIVE=true
+fi
+
+ask() {
+  # Print prompt to stderr (always goes to terminal); read answer from fd 3 (tty).
+  printf "%b?%b %s " "$color_green" "$color_reset" "$*" >&2
+  local ans
+  read -r ans <&3
+  printf '%s' "$ans"
+}
 
 # --- preflight ---------------------------------------------------------------
 
@@ -64,7 +78,6 @@ mkdir -p "$LOCAL_BIN"
 ln -sf "$INSTALL_DIR/dist/index.js" "$LOCAL_BIN/kb"
 chmod +x "$INSTALL_DIR/dist/index.js"
 
-# Detect shell profile and append PATH export if not already present.
 PATH_LINE="export PATH=\"\$HOME/.local/bin:\$PATH\""
 SHELL_RC=""
 case "${SHELL:-}" in
@@ -75,14 +88,11 @@ esac
 PATH_ADDED=false
 if [ -n "$SHELL_RC" ]; then
   if ! grep -qF '.local/bin' "$SHELL_RC" 2>/dev/null; then
-    echo "" >> "$SHELL_RC"
-    echo "# Added by kb installer" >> "$SHELL_RC"
-    echo "$PATH_LINE" >> "$SHELL_RC"
+    { echo ""; echo "# Added by kb installer"; echo "$PATH_LINE"; } >> "$SHELL_RC"
     PATH_ADDED=true
   fi
 fi
 
-# Make kb available in this shell session without requiring a reload.
 export PATH="$LOCAL_BIN:$PATH"
 
 # --- vault setup -------------------------------------------------------------
@@ -91,42 +101,42 @@ echo ""
 ok "kb installed."
 echo ""
 
-# When piped through curl|bash stdin is the pipe — read from /dev/tty instead.
-TTY="${TTY:-/dev/tty}"
-if [ ! -r "$TTY" ]; then TTY="/dev/stdin"; fi
+if ! $INTERACTIVE; then
+  echo "Run in a new terminal:"
+  echo "  kb init              — create a new vault"
+  echo "  kb init --upgrade    — join an existing team vault (cd into the clone first)"
+  echo ""
+  exit 0
+fi
 
-ask "New vault or existing team vault? [new/existing]"
-read -r vault_mode <"$TTY"
+vault_mode=$(ask "New vault or existing team vault? [new/existing]")
 vault_mode="${vault_mode:-new}"
-
 echo ""
 
 if [ "$vault_mode" = "existing" ]; then
-  # --- clone existing team vault ---
-  ask "Team vault repo URL:"
-  read -r vault_url <"$TTY"
+  vault_url=$(ask "Team vault repo URL:")
+  echo ""
 
   default_name="$(basename "$vault_url" .git)"
   default_path="$HOME/Documents/$default_name"
-  ask "Clone to [$default_path]:"
-  read -r vault_path <"$TTY"
+  vault_path=$(ask "Clone to [$default_path]:")
   vault_path="${vault_path:-$default_path}"
-
   echo ""
+
   say "Cloning vault into $vault_path..."
   git clone "$vault_url" "$vault_path"
-
   cd "$vault_path"
-  "$LOCAL_BIN/kb" init --upgrade <"$TTY"
+
+  # fd 3 is /dev/tty — redirect it to stdin so kb init reads from the terminal
+  "$LOCAL_BIN/kb" init --upgrade <&3
 else
-  # --- new vault ---
-  "$LOCAL_BIN/kb" init <"$TTY"
+  "$LOCAL_BIN/kb" init <&3
 fi
 
 # --- shell reload reminder ---------------------------------------------------
 
 echo ""
 if $PATH_ADDED; then
-  printf "%b!%b Shell reloaded for this session. To persist, run: source %s\n" \
+  printf "%b!%b PATH updated — to persist beyond this session: source %s\n" \
     "$color_green" "$color_reset" "${SHELL_RC:-~/.zshrc}"
 fi
