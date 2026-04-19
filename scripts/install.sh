@@ -98,8 +98,16 @@ fi
 # --- build -------------------------------------------------------------------
 
 cd "$INSTALL_DIR"
-say "Installing dependencies..."
-npm install --silent --no-audit --no-fund
+# Prefer `npm ci` on updates: wipes node_modules and reinstalls strictly from
+# package-lock.json, so a stray edit to any vendored file can't survive an update.
+# Falls back to `npm install` on a fresh clone that may lack the lockfile.
+if [ -f package-lock.json ]; then
+  say "Installing dependencies (clean install)..."
+  npm ci --silent --no-audit --no-fund
+else
+  say "Installing dependencies..."
+  npm install --silent --no-audit --no-fund
+fi
 
 say "Building..."
 npm run build --silent
