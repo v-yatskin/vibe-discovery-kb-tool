@@ -15,6 +15,7 @@ import { filesCommand } from './commands/files';
 import { editCommand } from './commands/edit';
 import { linkCommand } from './commands/link';
 import { retireCommand } from './commands/retire';
+import { updateCommand } from './commands/update';
 
 const program = new Command();
 
@@ -125,5 +126,10 @@ program
   .option('--close', 'Update PR body, squash-merge, return to main')
   .option('--status', 'Show active session state')
   .action((options) => branchCommand(options));
+
+program
+  .command('update')
+  .description('Update kb to the latest version')
+  .action(() => updateCommand());
 
 program.parse();
