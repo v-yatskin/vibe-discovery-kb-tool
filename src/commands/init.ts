@@ -131,9 +131,10 @@ function isGitRepo(p: string): boolean {
 
 const POST_MERGE_HOOK = `#!/bin/sh
 # Installed by kb init — runs after git merge / git pull.
-# Generates an update log summarizing commits pulled from remote.
+# Generates an update log and refreshes the semantic search index.
 if command -v kb >/dev/null 2>&1; then
   kb updates --generate --quiet 2>/dev/null || true
+  kb index --diff --quiet 2>/dev/null || true
 fi
 `;
 

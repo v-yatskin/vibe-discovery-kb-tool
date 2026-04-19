@@ -3,12 +3,14 @@ import Fuse from 'fuse.js';
 import path from 'path';
 import { getVaultPath } from '../config';
 import { readAllCanonical, VaultFile } from '../vault/reader';
+import { loadIndex, cosineSimilarity } from '../search/vectors';
+import { embed } from '../search/embed';
 
 interface SearchItem extends VaultFile {
   searchText: string;
 }
 
-export function searchCommand(
+export async function searchCommand(
   query: string,
   options: { type?: string; limit?: number }
 ) {
@@ -16,11 +18,11 @@ export function searchCommand(
   const limit = options.limit || 8;
 
   let files = readAllCanonical(vaultPath);
-
   if (options.type) {
     files = files.filter((f) => f.frontmatter.type === options.type);
   }
 
+  // ── Keyword (fuse.js) ────────────────────────────────────────────────
   const items: SearchItem[] = files.map((f) => ({
     ...f,
     searchText: [
@@ -40,28 +42,56 @@ export function searchCommand(
     ignoreLocation: true,
     minMatchCharLength: 2,
   });
+  const keywordRanked = fuse.search(query).map((r) => path.relative(vaultPath, r.item.path));
 
-  const results = fuse.search(query).slice(0, limit);
+  // ── Semantic (if index exists) ───────────────────────────────────────
+  const index = loadIndex(vaultPath);
+  let semanticRanked: string[] = [];
+  if (index) {
+    const queryVec = await embed(query);
+    const inScope = new Set(files.map((f) => path.relative(vaultPath, f.path)));
+    semanticRanked = index.entries
+      .filter((e) => inScope.has(e.path))
+      .map((e) => ({ relPath: e.path, score: cosineSimilarity(queryVec, e.vector) }))
+      .sort((a, b) => b.score - a.score)
+      .map((e) => e.relPath);
+  }
 
-  if (results.length === 0) {
+  // ── Reciprocal Rank Fusion ───────────────────────────────────────────
+  // RRF doesn't require score calibration across sources — each adds 1/(k+rank).
+  const K = 60;
+  const fused = new Map<string, number>();
+  keywordRanked.forEach((rel, rank) => {
+    fused.set(rel, (fused.get(rel) || 0) + 1 / (K + rank));
+  });
+  semanticRanked.forEach((rel, rank) => {
+    fused.set(rel, (fused.get(rel) || 0) + 1 / (K + rank));
+  });
+
+  const ranked = Array.from(fused.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  if (ranked.length === 0) {
     console.log(chalk.yellow(`\nNo results for: "${query}"\n`));
     return;
   }
 
-  console.log(chalk.bold(`\nSEARCH: "${query}"`) + chalk.dim('  (keyword — run kb index for semantic search)'));
+  const mode = index
+    ? chalk.dim('hybrid — keyword + semantic')
+    : chalk.dim('keyword only — run `kb index` to enable semantic search');
+  console.log(chalk.bold(`\nSEARCH: "${query}"`) + '  ' + mode);
   console.log();
 
-  results.forEach(({ item, score }) => {
-    const pct = Math.round((1 - (score || 0)) * 100);
-    const relPath = path.relative(vaultPath, item.path);
-    const title = String(item.frontmatter.title || item.filename).substring(0, 50);
-    const author = String(item.frontmatter.author || (item.frontmatter.attendees || [])[0] || '');
-    const date = String(item.frontmatter.created || item.frontmatter.date || '').substring(0, 10);
-
+  const fileByRel = new Map(files.map((f) => [path.relative(vaultPath, f.path), f]));
+  ranked.forEach(([relPath]) => {
+    const file = fileByRel.get(relPath);
+    if (!file) return;
+    const author = String(file.frontmatter.author || (file.frontmatter.attendees || [])[0] || '');
+    const date = String(file.frontmatter.created || file.frontmatter.date || '').substring(0, 10);
     console.log(
-      `  ${chalk.dim(String(pct).padStart(3) + '%')}  ${chalk.white(relPath.padEnd(58))} ${chalk.dim(author.padEnd(8))} ${chalk.dim(date)}`
+      `  ${chalk.white(relPath.padEnd(58))} ${chalk.dim(author.padEnd(8))} ${chalk.dim(date)}`
     );
   });
-
   console.log();
 }

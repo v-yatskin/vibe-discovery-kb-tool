@@ -8,19 +8,28 @@ import { statusCommand } from './commands/status';
 import { branchCommand } from './commands/branch';
 import { initCommand } from './commands/init';
 import { updatesCommand } from './commands/updates';
+import { indexCommand } from './commands/index-cmd';
 
 const program = new Command();
 
 program
   .name('kb')
   .description('Product knowledge vault CLI')
-  .version('0.2.0');
+  .version('0.3.0');
 
 program
   .command('init')
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('index')
+  .description('Build/refresh the semantic search index (.kb/vectors.json)')
+  .option('--diff', 'Only re-embed files whose content hash changed (fast)')
+  .option('--rebuild', 'Force full re-embed (overrides --diff)')
+  .option('--quiet', 'Suppress output (used by post-merge hook)')
+  .action((options) => indexCommand(options));
 
 program
   .command('updates')
