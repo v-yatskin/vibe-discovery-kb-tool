@@ -117,10 +117,10 @@ if [ "$vault_mode" = "existing" ]; then
   git clone "$vault_url" "$vault_path"
 
   cd "$vault_path"
-  "$LOCAL_BIN/kb" init --upgrade
+  "$LOCAL_BIN/kb" init --upgrade <"$TTY"
 else
   # --- new vault ---
-  "$LOCAL_BIN/kb" init
+  "$LOCAL_BIN/kb" init <"$TTY"
 fi
 
 # --- shell reload reminder ---------------------------------------------------
