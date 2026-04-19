@@ -1,15 +1,15 @@
 filters:
   and:
-    - 'type == "problem"'
-    - 'status == "open"'
+    - type == "problem"
+    - status == "open"
 views:
   - type: table
-    name: "Open problems"
+    name: Open problems
+    groupBy:
+      property: severity
+      direction: DESC
     order:
       - file.name
-      - note.title
-      - note.severity
-      - note.linked_insights
-    groupBy:
-      property: note.severity
-      direction: DESC
+      - title
+      - severity
+      - linked_insights

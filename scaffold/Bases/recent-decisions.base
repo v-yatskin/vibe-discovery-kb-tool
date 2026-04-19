@@ -1,15 +1,15 @@
 filters:
   and:
-    - 'type == "decision"'
+    - type == "decision"
 views:
   - type: table
-    name: "Recent decisions"
-    limit: 20
+    name: Recent decisions
+    groupBy:
+      property: created
+      direction: DESC
     order:
       - file.name
-      - note.title
-      - note.status
-      - note.created
-    groupBy:
-      property: note.created
-      direction: DESC
+      - title
+      - status
+      - created
+    limit: 20

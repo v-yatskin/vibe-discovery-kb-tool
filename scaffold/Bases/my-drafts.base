@@ -1,14 +1,14 @@
 filters:
   and:
-    - 'file.inFolder("00_Drafts")'
+    - file.inFolder("00_Drafts")
 views:
   - type: table
-    name: "My drafts (pending publish)"
-    order:
-      - file.name
-      - note.type
-      - note.title
-      - file.mtime
+    name: My drafts (pending publish)
     groupBy:
       property: file.mtime
       direction: DESC
+    order:
+      - file.name
+      - type
+      - title
+      - file.mtime
