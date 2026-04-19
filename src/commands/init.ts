@@ -212,7 +212,7 @@ async function gatherAnswers(session: PromptSession): Promise<InitAnswers> {
   const productName = await session.ask(chalk.cyan('Product name?'), 'YourProduct');
   const author = await session.ask(chalk.cyan('Your name?'));
   const teamInput = await session.ask(
-    chalk.cyan('Team members? (comma-separated, e.g. "Viktor (PM), Anna (Designer)")'),
+    chalk.cyan('Team members? (comma-separated, e.g. "Alex (PM), Sam (Designer)")'),
     ''
   );
   const team = teamInput

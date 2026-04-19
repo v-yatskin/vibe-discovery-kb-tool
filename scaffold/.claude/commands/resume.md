@@ -7,7 +7,7 @@ Load context at the start of a session.
    - What was happening in the last session (if session log exists)
    - Any pending tasks from last session
    - Current vault state: open problems, planned initiatives, upcoming ceremonies
-5. If git pull brought in new commits: summarize what changed ("Viktor added 2 new insights")
+5. If git pull brought in new commits: summarize what changed ("Alex added 2 new insights")
 6. Ready to work.
 
 Usage:
