@@ -2,7 +2,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getVaultPath } from '../config';
-import { readAllCanonical, VaultFile } from '../vault/reader';
+import { readAllCanonical, readArchiveEntries, VaultFile } from '../vault/reader';
 import { embed, EMBED_MODEL } from '../search/embed';
 import { IndexEntry, loadIndex, saveIndex, hashContent } from '../search/vectors';
 
@@ -26,7 +26,7 @@ export async function indexCommand(options: { diff?: boolean; quiet?: boolean; r
   const quiet = !!options.quiet;
   const useDiff = !!options.diff && !options.rebuild;
 
-  const files = readAllCanonical(vaultPath);
+  const files = [...readAllCanonical(vaultPath), ...readArchiveEntries(vaultPath)];
   if (files.length === 0) {
     if (!quiet) console.log(chalk.dim('\nNo canonical files to index.\n'));
     return;
