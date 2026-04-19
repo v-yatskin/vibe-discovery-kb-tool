@@ -27,7 +27,7 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | `kb index` + `kb index --diff` | ✅ Phase 3 — embeds canonical files into `.kb/vectors.json`, content-hash diff |
 | `kb branch --open / --close / --status` | ✅ full two-phase git flow (push + `gh pr create` + `gh pr merge` + `git pull`) |
 | Sample vault | ✅ lives in separate repo: [vibe-disco-vault-test](https://github.com/v-yatskin/vibe-disco-vault-test) |
-| `.claude/CLAUDE.md` + slash commands (in the vault repo) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis` |
+| `.claude/CLAUDE.md` + slash commands (scaffolded into every new vault by `kb init`) | ✅ `/draft`, `/publish`, `/resume`, `/compress`, `/gap-analysis`, `/updates`, `/roadmap`, `/preserve`, `/engineer-critique`, `/spec-writer` |
 | `kb init` + `kb init --upgrade` | ✅ Phase 1 — scaffolds a fresh vault from `scaffold/` with placeholder substitution |
 | `scripts/install.sh` | ✅ clone + build + link |
 
@@ -36,7 +36,7 @@ The user talks to Claude Code. Claude runs `kb`. No one opens a terminal after i
 | Area | Target |
 |---|---|
 | `kb updates --generate` + post-merge hook | ✅ Phase 2 — auto-runs on `git pull`, writes `Updates-Log/*.md` |
-| Slash commands `/roadmap` `/preserve` `/engineer-critique` `/spec-writer` | Phase 4 |
+| Slash commands `/roadmap` `/preserve` `/engineer-critique` `/spec-writer` | ✅ Phase 4 — scaffolded by `kb init` / `kb init --upgrade` |
 | Compiled binary (`bun build --compile`) | Phase 6 (optional) |
 
 Estimated remaining effort: **~10h v1 + ~10h v2** — see `execution-plan.md` in the [planning repo](https://github.com/v-yatskin/vibe-discovery).
