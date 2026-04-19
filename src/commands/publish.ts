@@ -10,7 +10,6 @@ import { gitAdd, gitCommit, isGitRepo } from '../vault/git';
 import { readSession, writeSession } from '../vault/session';
 import { upsertLinksSection } from '../vault/wikilinks';
 import { peekEdit, consumeEdit } from '../vault/edits';
-import { writeArchiveEntry } from '../vault/archive';
 
 function toSlug(str: string): string {
   return str
@@ -149,18 +148,13 @@ export async function publishCommand(filename?: string) {
   if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
   fs.writeFileSync(targetPath, newContent, 'utf-8');
 
-  // Delete draft (was never committed — gitignored) and write archive entry
-  fs.unlinkSync(draftPath);
-  const session = readSession(vaultPath);
-  const archiveRel = writeArchiveEntry(vaultPath, {
-    action: 'publish',
-    canonicalRel: path.join(targetFolder, targetFilename),
-    fm: canonicalFm,
-    session,
-  });
+  // Archive draft
+  const archiveDir = path.join(vaultPath, 'archive');
+  if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+  fs.renameSync(draftPath, path.join(archiveDir, filename));
 
   console.log(chalk.green(`\n  ✓ Saved:    ${targetFolder}/${targetFilename}`));
-  console.log(chalk.dim(`  ✓ Archive:  ${archiveRel}`));
+  console.log(chalk.dim(`  ✓ Archived: archive/${filename}`));
 
   // Git commit
   if (isGitRepo(vaultPath)) {
@@ -171,14 +165,16 @@ export async function publishCommand(filename?: string) {
       gitCommit(vaultPath, commitMsg);
       console.log(chalk.green(`  ✓ Committed: "${commitMsg}" (local — pushed at kb branch --close)`));
 
-      // Update active session if one exists (session already read above for archive entry)
+      // Update active session if one exists
+      const session = readSession(vaultPath);
       if (session) {
         const relPath = path.relative(vaultPath, targetPath);
         if (!session.artifacts.includes(relPath)) {
           session.artifacts.push(relPath);
           writeSession(vaultPath, session);
         }
-        console.log(chalk.dim(`  ✓ Added to session: ${relPath}  (${session.artifacts.length} artifact${session.artifacts.length !== 1 ? 's' : ''} total)`));
+
+        console.log(chalk.dim(`  ✓ Added to session: ${relPath}  (${session.artifacts.length} artifact${session.artifacts.length !== 1 ? 's' : ''} total)`))
       }
     } catch (e: any) {
       console.log(chalk.yellow(`  ⚠ Git commit failed: ${e.message?.split('\n')[0]}`));
@@ -259,38 +255,30 @@ async function publishEdit(
   const newContent = matter.stringify(bodyWithLinks, fm);
   fs.writeFileSync(targetPath, newContent, 'utf-8');
 
-  // Delete draft and write archive entry
-  fs.unlinkSync(draftPath);
+  // Archive + consume edit tracking
+  const archiveDir = path.join(vaultPath, 'archive');
+  if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+  fs.renameSync(draftPath, path.join(archiveDir, draftFilename));
   consumeEdit(vaultPath, draftFilename);
-  const editSession = readSession(vaultPath);
-  const diffedFields = changes.length > 0
-    ? Object.keys(originalFm).filter((k) => JSON.stringify(originalFm[k]) !== JSON.stringify(fm[k]))
-    : [];
-  const archiveRel = writeArchiveEntry(vaultPath, {
-    action: 'update',
-    canonicalRel,
-    fm,
-    changedFields: diffedFields,
-    session: editSession,
-  });
 
   console.log(chalk.green(`\n  ✓ Updated:  ${canonicalRel}`));
-  console.log(chalk.dim(`  ✓ Archive:  ${archiveRel}`));
+  console.log(chalk.dim(`  ✓ Archived: archive/${draftFilename}`));
 
   if (isGitRepo(vaultPath)) {
     try {
       gitAdd(vaultPath, targetPath);
       const title = fm.title || path.basename(targetPath).replace(/\.md$/, '');
-      const changedLabel = diffedFields.length > 0 ? ` (${diffedFields.join(', ') || 'content'})` : '';
-      const commitMsg = `update: ${title}${changedLabel}`;
+      const changedFields = changes.length > 0 ? ` (${Object.keys(originalFm).filter((k) => JSON.stringify(originalFm[k]) !== JSON.stringify(fm[k])).join(', ') || 'content'})` : '';
+      const commitMsg = `update: ${title}${changedFields}`;
       gitCommit(vaultPath, commitMsg);
       console.log(chalk.green(`  ✓ Committed: "${commitMsg}" (local — push at kb branch --close)`));
 
-      if (editSession) {
+      const session = readSession(vaultPath);
+      if (session) {
         const relPath = path.relative(vaultPath, targetPath);
-        if (!editSession.artifacts.includes(relPath)) {
-          editSession.artifacts.push(relPath);
-          writeSession(vaultPath, editSession);
+        if (!session.artifacts.includes(relPath)) {
+          session.artifacts.push(relPath);
+          writeSession(vaultPath, session);
         }
       }
     } catch (e: any) {

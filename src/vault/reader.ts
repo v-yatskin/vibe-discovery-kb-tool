@@ -35,9 +35,6 @@ export const ALL_CANONICAL_FOLDERS = [
   '10_Ceremonies',
 ];
 
-// Archive entries (type: archive-entry) are indexed for RAG alongside canonical files.
-export const ARCHIVE_FOLDER = 'archive';
-
 export function readFolder(vaultPath: string, folder: string): VaultFile[] {
   const folderPath = path.join(vaultPath, folder);
   if (!fs.existsSync(folderPath)) return [];
@@ -63,11 +60,5 @@ export function readFolder(vaultPath: string, folder: string): VaultFile[] {
 export function readAllCanonical(vaultPath: string): VaultFile[] {
   return ALL_CANONICAL_FOLDERS.flatMap((folder) =>
     readFolder(vaultPath, folder)
-  );
-}
-
-export function readArchiveEntries(vaultPath: string): VaultFile[] {
-  return readFolder(vaultPath, ARCHIVE_FOLDER).filter(
-    (f) => f.frontmatter?.type === 'archive-entry'
   );
 }
