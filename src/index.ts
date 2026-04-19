@@ -11,6 +11,7 @@ import { updatesCommand } from './commands/updates';
 import { indexCommand } from './commands/index-cmd';
 import { baseCommand } from './commands/base';
 import { snapshotCommand } from './commands/snapshot';
+import { filesCommand } from './commands/files';
 
 const program = new Command();
 
@@ -24,6 +25,15 @@ program
   .description('Create a new vault (or add missing structure with --upgrade)')
   .option('--upgrade', 'Add missing folders/slash commands/templates to an existing vault')
   .action((options) => initCommand(options));
+
+program
+  .command('files')
+  .description('Manage the _files/ symlink to OneDrive (or other cloud sync folder)')
+  .option('--link [path]', 'Symlink _files/ into your OneDrive folder (auto-detects if path omitted)')
+  .option('--unlink', 'Remove the symlink, restore _files/ to a regular empty directory')
+  .option('--status', 'Show the current _files/ state (default)')
+  .option('--force', 'Replace an existing symlink when --link is used')
+  .action((options) => filesCommand(options));
 
 program
   .command('snapshot')
