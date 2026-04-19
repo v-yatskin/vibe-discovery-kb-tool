@@ -35,13 +35,47 @@ ask() {
 # --- preflight ---------------------------------------------------------------
 
 command -v git  >/dev/null 2>&1 || die "git is required. Install Xcode command line tools: xcode-select --install"
-command -v node >/dev/null 2>&1 || die "Node.js $MIN_NODE_MAJOR+ is required. Install from https://nodejs.org (pick the LTS) and re-run."
-command -v npm  >/dev/null 2>&1 || die "npm is required (usually ships with Node.js)."
 
-NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
-if [ "$NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]; then
-  die "Node $MIN_NODE_MAJOR+ required (have $(node -v)). Upgrade from https://nodejs.org."
+# Install or upgrade Node via nvm if it's missing or too old.
+install_node_via_nvm() {
+  export NVM_DIR="$HOME/.nvm"
+  if [ ! -s "$NVM_DIR/nvm.sh" ]; then
+    say "Installing nvm (per-user Node version manager)..."
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash >/dev/null
+  fi
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
+  say "Installing Node $MIN_NODE_MAJOR via nvm..."
+  nvm install "$MIN_NODE_MAJOR" >/dev/null
+  nvm alias default "$MIN_NODE_MAJOR" >/dev/null 2>&1 || true
+  nvm use "$MIN_NODE_MAJOR" >/dev/null
+}
+
+need_node_install=false
+if ! command -v node >/dev/null 2>&1; then
+  need_node_install=true
+else
+  NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
+  if [ "$NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]; then
+    say "Node $(node -v) is too old — kb needs $MIN_NODE_MAJOR+."
+    need_node_install=true
+  fi
 fi
+
+if $need_node_install; then
+  if $INTERACTIVE; then
+    ans=$(ask "Install Node $MIN_NODE_MAJOR via nvm now? [Y/n]")
+    case "${ans:-y}" in
+      n|N|no|No) die "Node $MIN_NODE_MAJOR+ required. Install from https://nodejs.org (LTS) and re-run." ;;
+    esac
+  else
+    say "Installing Node $MIN_NODE_MAJOR via nvm (non-interactive)..."
+  fi
+  install_node_via_nvm
+  ok "Node $(node -v) ready."
+fi
+
+command -v npm  >/dev/null 2>&1 || die "npm is required (usually ships with Node.js)."
 
 if ! command -v gh >/dev/null 2>&1; then
   say "Note: \`gh\` CLI not found. kb needs it for the publish flow."

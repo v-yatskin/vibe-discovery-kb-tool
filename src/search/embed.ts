@@ -14,9 +14,9 @@ let embedderPromise: Promise<Embedder> | null = null;
 const NODE_MAJOR = parseInt(process.versions.node.split('.')[0], 10);
 
 export async function getEmbedder(): Promise<Embedder> {
-  if (NODE_MAJOR < 15) {
+  if (NODE_MAJOR < 20) {
     throw new Error(
-      `Semantic search requires Node.js 15+ (running ${process.version}). ` +
+      `Semantic search requires Node.js 20+ (running ${process.version}). ` +
       `Upgrade Node and re-run \`kb index\` to enable it.`
     );
   }
