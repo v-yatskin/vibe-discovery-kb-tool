@@ -264,6 +264,31 @@ function installPostMergeHook(vaultPath: string): 'installed' | 'exists' | 'skip
   return 'installed';
 }
 
+const CRON_MARKER = '# kb-tool auto-update';
+
+// Add a weekly cron job that runs `kb update` every Monday at 09:00.
+// Idempotent — skips if the marker is already in the crontab.
+// Returns a log line or null on failure.
+function scheduleWeeklyUpdate(): string | null {
+  let kbPath = `${os.homedir()}/.local/bin/kb`;
+  try {
+    const resolved = execSync('which kb 2>/dev/null', { stdio: 'pipe' }).toString().trim();
+    if (resolved) kbPath = resolved;
+  } catch { /* use default */ }
+
+  const cronLine = `0 9 * * 1 ${kbPath} update --quiet 2>/dev/null ${CRON_MARKER}`;
+
+  try {
+    const current = execSync('crontab -l 2>/dev/null', { stdio: 'pipe' }).toString();
+    if (current.includes(CRON_MARKER)) return null; // already scheduled
+    const updated = current.trimEnd() + (current.length ? '\n' : '') + cronLine + '\n';
+    execSync('crontab -', { input: updated, stdio: ['pipe', 'pipe', 'pipe'] });
+    return chalk.green('  ✓ Weekly auto-update scheduled (Mondays 09:00 via cron)');
+  } catch {
+    return chalk.dim('  (crontab unavailable — run `kb update` manually to upgrade)');
+  }
+}
+
 async function gatherAnswers(session: PromptSession): Promise<InitAnswers> {
   console.log(chalk.bold('\nkb init — create a new product discovery vault\n'));
   const vaultPath = await session.ask(chalk.cyan('Where should the vault live?'), DEFAULT_VAULT_PATH);
@@ -423,8 +448,11 @@ async function runFreshInit(scaffoldDir: string, session: PromptSession) {
   console.log(`  ${chalk.white('Author:')}   ${author}`);
   if (team.length) console.log(`  ${chalk.white('Team:')}     ${team.join(', ')}`);
   console.log(`  ${chalk.white('Config:')}   ${configPath}`);
+  const updateLog = scheduleWeeklyUpdate();
+
   if (oneDriveLog) console.log(oneDriveLog);
   if (remoteLog) console.log(remoteLog);
+  if (updateLog) console.log(updateLog);
 
   console.log(chalk.bold('\nNext steps:'));
   console.log(`  1. Open ${path.basename(vaultPath)}/ in Claude Code (drag it into the app as a project)`);

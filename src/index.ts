@@ -130,6 +130,7 @@ program
 program
   .command('update')
   .description('Update kb to the latest version')
-  .action(() => updateCommand());
+  .option('--quiet', 'Suppress output')
+  .action((options) => updateCommand(options));
 
 program.parse();
