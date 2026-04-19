@@ -147,7 +147,17 @@ async function setupGitRemote(
   const want = await session.ask(chalk.cyan('Set up a remote GitHub repo now?'), 'Y/n');
   if (want.toLowerCase().startsWith('n')) return null;
 
+  // If gh is available, let them choose: create new or link existing.
+  let useExisting = !hasGh;
   if (hasGh) {
+    const mode = await session.ask(
+      chalk.cyan('  Create a new repo or link to an existing one? (new/existing)'),
+      'new'
+    );
+    useExisting = mode.trim().toLowerCase().startsWith('e');
+  }
+
+  if (!useExisting) {
     const vis = await session.ask(chalk.cyan('  Visibility (private/public)?'), 'private');
     const repoName = path.basename(vaultPath).toLowerCase().replace(/[^a-z0-9-]/g, '-');
     try {
@@ -162,8 +172,8 @@ async function setupGitRemote(
     }
   }
 
-  // No gh — ask for an existing URL.
-  const url = await session.ask(chalk.cyan('  GitHub repo URL (leave blank to skip)?'), '');
+  // Link to existing repo.
+  const url = await session.ask(chalk.cyan('  Existing repo URL?'), '');
   if (!url) return null;
   try {
     execSync(`git remote add origin "${url}"`, { cwd: vaultPath, stdio: 'pipe' });
